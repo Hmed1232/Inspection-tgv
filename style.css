@@ -4,6 +4,21 @@ body {
   background: #f4f4f4;
 }
 
+header {
+  margin-bottom: 20px;
+}
+
+input {
+  padding: 8px;
+  margin: 5px;
+}
+
+button {
+  padding: 10px;
+  margin: 5px;
+  cursor: pointer;
+}
+
 .hidden {
   display: none;
 }

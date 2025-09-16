@@ -5,6 +5,13 @@ let defauts = [];
 
 function selectRemorque(remorque) {
   currentRemorque = remorque;
+  console.log("Remorque sélectionnée :", remorque);
+
+  if (remorque.startsWith('M')) {
+    alert("Zone technique : " + remorque);
+    return;
+  }
+
   document.getElementById('niveauSelection').classList.remove('hidden');
 }
 

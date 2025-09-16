@@ -18,12 +18,19 @@
 <main id="trainView">
   <h2>Vue du train</h2>
   <div id="schemaTrain">
-    <img src="assets/tgv schema.png" usemap="#image-map" alt="Schéma du TGV" id="trainImage">
+    <img src="assets/tgv-schema.png" usemap="#image-map" alt="Schéma du TGV" id="trainImage" style="max-width:100%; height:auto;">
 
     <map name="image-map">
-      <area alt="R1" coords="411,7,213,69" shape="rect" onclick="selectRemorque('R1')">
-      <area alt="R2" coords="414,7,581,62" shape="rect" onclick="selectRemorque('R2')">
-      <!-- ... autres remorques -->
+      <area alt="Motrice 1" coords="8,62,211,11" shape="rect" onclick="selectRemorque('M1')">
+      <area alt="Remorque 1" coords="411,7,213,69" shape="rect" onclick="selectRemorque('R1')">
+      <area alt="Remorque 2" coords="414,7,581,62" shape="rect" onclick="selectRemorque('R2')">
+      <area alt="Remorque 3" coords="585,8,753,53" shape="rect" onclick="selectRemorque('R3')">
+      <area alt="Remorque 4" coords="758,10,938,59" shape="rect" onclick="selectRemorque('R4')">
+      <area alt="Remorque 5" coords="16,81,193,127" shape="rect" onclick="selectRemorque('R5')">
+      <area alt="Remorque 6" coords="197,82,364,132" shape="rect" onclick="selectRemorque('R6')">
+      <area alt="Remorque 7" coords="365,81,542,134" shape="rect" onclick="selectRemorque('R7')">
+      <area alt="Remorque 8" coords="546,80,739,137" shape="rect" onclick="selectRemorque('R8')">
+      <area alt="Motrice 2" coords="741,81,946,134" shape="rect" onclick="selectRemorque('M2')">
     </map>
   </div>
 
@@ -35,17 +42,16 @@
     <button onclick="selectNiveau('exterieur')">Extérieur</button>
   </div>
 
-  <!-- Plan salle haute avec zones -->
+  <!-- Plan salle haute -->
   <div id="planSalle" class="hidden">
     <h3 id="titrePlan"></h3>
-    <img src="plans/R1_haut.jpg" usemap="#map-salle-haute" width="948" height="205" alt="Plan salle haute">
+    <img src="plans/R1_haut.jpg" usemap="#map-salle-haute" width="948" height="205" alt="Plan salle haute" style="max-width:100%; height:auto;">
 
     <map name="map-salle-haute">
-      <!-- Exemple de zones cliquables (coords à ajuster selon ton image) -->
+      <!-- Exemple de zones rouges (coords à ajuster selon ton image) -->
       <area alt="Zone 1" coords="10,10,150,100" shape="rect" onclick="ouvrirCommentaire('Zone 1')">
       <area alt="Zone 2" coords="160,10,300,100" shape="rect" onclick="ouvrirCommentaire('Zone 2')">
       <area alt="Zone 3" coords="310,10,450,100" shape="rect" onclick="ouvrirCommentaire('Zone 3')">
-      <!-- Ajoute toutes les zones rouges ici -->
     </map>
   </div>
 </main>
@@ -58,6 +64,7 @@
   <button onclick="enregistrerDefaut()">Enregistrer</button>
 </div>
 
+<!-- Historique -->
 <section id="historique" class="hidden">
   <h2>Historique des défauts</h2>
   <table id="defautTable">
@@ -67,6 +74,14 @@
     <tbody></tbody>
   </table>
 </section>
+
+<!-- Script pour image map responsive -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/image-map-resizer/1.0.10/js/imageMapResizer.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    imageMapResize();
+  });
+</script>
 
 <script src="script.js"></script>
 </body>
