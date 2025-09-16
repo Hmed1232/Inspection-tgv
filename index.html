@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inspection TGV Duplex</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Inspection TGV Duplex</h1>
+  <input type="text" id="prenom" placeholder="Votre prénom">
+  <input type="text" id="rame" placeholder="Numéro de rame">
+</header>
+
+<!-- Schéma du train -->
+<main id="trainView">
+  <h2>Vue du train</h2>
+  <div id="schemaTrain">
+    <img src="assets/tgv schema.png" usemap="#image-map" alt="Schéma du TGV" id="trainImage">
+
+    <map name="image-map">
+      <area alt="R1" coords="411,7,213,69" shape="rect" onclick="selectRemorque('R1')">
+      <area alt="R2" coords="414,7,581,62" shape="rect" onclick="selectRemorque('R2')">
+      <!-- ... autres remorques -->
+    </map>
+  </div>
+
+  <!-- Sélection salle -->
+  <div id="niveauSelection" class="hidden">
+    <h3>Choisissez le niveau</h3>
+    <button onclick="selectNiveau('haut')">Salle haute</button>
+    <button onclick="selectNiveau('bas')">Salle basse</button>
+    <button onclick="selectNiveau('exterieur')">Extérieur</button>
+  </div>
+
+  <!-- Plan salle haute avec zones -->
+  <div id="planSalle" class="hidden">
+    <h3 id="titrePlan"></h3>
+    <img src="plans/R1_haut.jpg" usemap="#map-salle-haute" width="948" height="205" alt="Plan salle haute">
+
+    <map name="map-salle-haute">
+      <!-- Exemple de zones cliquables (coords à ajuster selon ton image) -->
+      <area alt="Zone 1" coords="10,10,150,100" shape="rect" onclick="ouvrirCommentaire('Zone 1')">
+      <area alt="Zone 2" coords="160,10,300,100" shape="rect" onclick="ouvrirCommentaire('Zone 2')">
+      <area alt="Zone 3" coords="310,10,450,100" shape="rect" onclick="ouvrirCommentaire('Zone 3')">
+      <!-- Ajoute toutes les zones rouges ici -->
+    </map>
+  </div>
+</main>
+
+<!-- Fenêtre commentaire -->
+<div id="commentaireModal" class="hidden">
+  <h4 id="zoneTitre"></h4>
+  <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
+  <input type="file" id="photo">
+  <button onclick="enregistrerDefaut()">Enregistrer</button>
+</div>
+
+<section id="historique" class="hidden">
+  <h2>Historique des défauts</h2>
+  <table id="defautTable">
+    <thead>
+      <tr><th>Prénom</th><th>Rame</th><th>Remorque</th><th>Niveau</th><th>Zone</th><th>Commentaire</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>
