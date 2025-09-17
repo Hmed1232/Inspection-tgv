@@ -1,87 +1,246 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inspection TGV Duplex</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <header>
   <h1>Inspection TGV Duplex</h1>
-  <input type="text" id="prenom" placeholder="Votre prénom">
-  <input type="text" id="rame" placeholder="Numéro de rame">
+  <input type="text" id="prenom" placeholder="Votre prénom" />
+  <input type="text" id="rame" placeholder="Numéro de rame" />
 </header>
 
-<!-- Schéma du train -->
-<main id="trainView">
-  <h2>Vue du train</h2>
-  <div id="schemaTrain">
-    <img src="assets/tgv-schema.png" usemap="#image-map" alt="Schéma du TGV" id="trainImage" style="max-width:100%; height:auto;">
+<main>
 
-    <map name="image-map">
-      <area alt="Motrice 1" coords="8,62,211,11" shape="rect" onclick="selectRemorque('M1')">
-      <area alt="Remorque 1" coords="411,7,213,69" shape="rect" onclick="selectRemorque('R1')">
-      <area alt="Remorque 2" coords="414,7,581,62" shape="rect" onclick="selectRemorque('R2')">
-      <area alt="Remorque 3" coords="585,8,753,53" shape="rect" onclick="selectRemorque('R3')">
-      <area alt="Remorque 4" coords="758,10,938,59" shape="rect" onclick="selectRemorque('R4')">
-      <area alt="Remorque 5" coords="16,81,193,127" shape="rect" onclick="selectRemorque('R5')">
-      <area alt="Remorque 6" coords="197,82,364,132" shape="rect" onclick="selectRemorque('R6')">
-      <area alt="Remorque 7" coords="365,81,542,134" shape="rect" onclick="selectRemorque('R7')">
-      <area alt="Remorque 8" coords="546,80,739,137" shape="rect" onclick="selectRemorque('R8')">
-      <area alt="Motrice 2" coords="741,81,946,134" shape="rect" onclick="selectRemorque('M2')">
+  <h2>Vue du train</h2>
+
+  <!-- Schéma TGV: image + overlay de surbrillance -->
+  <div class="image-container" id="schemaTrainContainer">
+    <img
+      id="trainImage"
+      src="assets/tgv schema.png"
+      alt="Schéma du TGV"
+      usemap="#train-map"
+    />
+    <svg id="schemaOverlay" class="overlay"></svg>
+
+    <!-- Map du schéma avec tes coordonnées -->
+    <map name="train-map" id="train-map">
+      <area alt="Motrice 1" title="Motrice 1" coords="8,62,211,11" shape="rect" onclick="selectRemorque('M1')" />
+      <area alt="Remorque 1" title="Remorque 1" coords="411,7,213,69" shape="rect" onclick="selectRemorque('R1')" />
+      <area alt="Remorque 2" title="Remorque 2" coords="414,7,581,62" shape="rect" onclick="selectRemorque('R2')" />
+      <area alt="Remorque 3" title="Remorque 3" coords="585,8,753,53" shape="rect" onclick="selectRemorque('R3')" />
+      <area alt="Remorque 4" title="Remorque 4" coords="758,10,938,59" shape="rect" onclick="selectRemorque('R4')" />
+      <area alt="Remorque 5" title="Remorque 5" coords="16,81,193,127" shape="rect" onclick="selectRemorque('R5')" />
+      <area alt="Remorque 6" title="Remorque 6" coords="197,82,364,132" shape="rect" onclick="selectRemorque('R6')" />
+      <area alt="Remorque 7" title="Remorque 7" coords="365,81,542,134" shape="rect" onclick="selectRemorque('R7')" />
+      <area alt="Remorque 8" title="Remorque 8" coords="546,80,739,137" shape="rect" onclick="selectRemorque('R8')" />
+      <area alt="Motrice 2" title="Motrice 2" coords="741,81,946,134" shape="rect" onclick="selectRemorque('M2')" />
     </map>
   </div>
 
-  <!-- Sélection salle -->
+  <!-- Choix niveau -->
   <div id="niveauSelection" class="hidden">
     <h3>Choisissez le niveau</h3>
-    <button onclick="selectNiveau('haut')">Salle haute</button>
-    <button onclick="selectNiveau('bas')">Salle basse</button>
-    <button onclick="selectNiveau('exterieur')">Extérieur</button>
+    <div class="btn-row">
+      <button onclick="selectNiveau('haut')">Salle haute</button>
+      <button onclick="selectNiveau('bas')">Salle basse</button>
+      <button onclick="selectNiveau('exterieur')">Extérieur</button>
+    </div>
   </div>
 
-  <!-- Plan salle haute -->
+  <!-- Plan de salle sélectionné -->
   <div id="planSalle" class="hidden">
     <h3 id="titrePlan"></h3>
-    <img src="plans/R1_haut.jpg" usemap="#map-salle-haute" width="948" height="205" alt="Plan salle haute" style="max-width:100%; height:auto;">
 
-    <map name="map-salle-haute">
-      <!-- Exemple de zones rouges (coords à ajuster selon ton image) -->
-      <area alt="Zone 1" coords="10,10,150,100" shape="rect" onclick="ouvrirCommentaire('Zone 1')">
-      <area alt="Zone 2" coords="160,10,300,100" shape="rect" onclick="ouvrirCommentaire('Zone 2')">
-      <area alt="Zone 3" coords="310,10,450,100" shape="rect" onclick="ouvrirCommentaire('Zone 3')">
-    </map>
+    <div class="image-container" id="planContainer">
+      <img id="planImage" src="" alt="Plan salle" />
+      <svg id="planOverlay" class="overlay"></svg>
+
+      <!-- MAPS — toutes les remorques/niveaux -->
+      <!-- R1 haut -->
+      <map name="map-R1-haut" id="map-R1-haut">
+        <area alt="Rangée droite" coords="112,29,645,97" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="108,99,646,164" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme haute" coords="649,19,649,169,756,172,754,122,897,120,897,18" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="820,122,895,167" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face droite" coords="109,11,645,26" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="106,166,652,179" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+      <!-- R1 bas -->
+      <map name="map-R1-bas" id="map-R1-bas">
+        <area alt="Coté droit" coords="122,28,625,103" shape="rect" onclick="ouvrirCommentaire('Coté droit')" />
+        <area alt="Coté gauche" coords="121,105,626,178" shape="rect" onclick="ouvrirCommentaire('Coté gauche')" />
+        <area alt="Face gauche" coords="120,176,632,194" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+        <area alt="Face droite" coords="116,9,630,26" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Plateforme basse" coords="636,183,632,20,883,19,881,75,812,79,710,80,710,182" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="792,177,712,82" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+      </map>
+
+      <!-- R2 haut -->
+      <map name="map-R2-haut" id="map-R2-haut">
+        <area alt="Rangée gauche" coords="120,98,596,162" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Rangée droite" coords="118,22,600,95" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Plateforme haute" coords="602,14,600,163,710,162,710,112,849,114,852,14" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="712,115,851,165" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face gauche" coords="119,162,595,177" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+        <area alt="Face droite" coords="119,3,598,19" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+      </map>
+      <!-- R2 bas -->
+      <map name="map-R2-bas" id="map-R2-bas">
+        <area alt="Rangée gauche" coords="127,23,641,102" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Rangée droite" coords="123,105,640,180" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Plateforme basse" coords="648,181,746,179,743,80,915,77,917,9,649,11" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="749,85,909,180" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face gauche" coords="121,181,645,196" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+        <area alt="Face droite" coords="121,1,645,20" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+      </map>
+
+      <!-- R3 haut -->
+      <map name="map-R3-haut" id="map-R3-haut">
+        <area alt="Rangée gauche" coords="115,108,624,186" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Rangée droite" coords="113,27,623,103" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Plateforme haute" coords="632,187,724,190,727,87,893,89,896,19,632,19" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="726,94,893,188" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face gauche" coords="117,186,629,203" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+        <area alt="Face droite" coords="108,8,627,26" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+      </map>
+      <!-- R3 bas -->
+      <map name="map-R3-bas" id="map-R3-bas">
+        <area alt="Rangée gauche" coords="47,122,638,189" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Rangée droite" coords="51,36,640,119" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Plateforme basse" coords="643,189,819,190,819,139,908,135,907,29,643,30" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="823,140,903,190" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face droite" coords="145,18,641,34" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="148,189,639,200" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+
+      <!-- R4 (salle consommation) — utilisé pour 'haut' -->
+      <map name="map-R4-haut" id="map-R4-haut">
+        <area alt="Bar" coords="120,102,595,176" shape="rect" onclick="ouvrirCommentaire('Bar')" />
+        <area alt="Rangée gauche" coords="598,100,864,174" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Rangée droite" coords="122,24,864,97" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Local ASCT" coords="20,22,120,176" shape="rect" onclick="ouvrirCommentaire('Local ASCT')" />
+        <area alt="Face droite" coords="48,8,860,22" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="183,176,871,191" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+
+      <!-- R5 haut -->
+      <map name="map-R5-haut" id="map-R5-haut">
+        <area alt="Rangée droite" coords="300,113,870,189" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="301,34,869,110" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme haute" coords="33,84,116,79,121,23,302,25,292,187,25,185" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="36,30,116,77" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face droite" coords="308,188,774,203" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="301,14,765,30" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+      <!-- R5 bas -->
+      <map name="map-R5-bas" id="map-R5-bas">
+        <area alt="Rangée droite" coords="293,123,808,188" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="294,30,808,120" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme basse" coords="285,192,8,189,13,125,192,126,189,25,283,23" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="16,23,188,122" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face droite" coords="362,190,802,202" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="351,10,805,27" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+
+      <!-- R6 haut -->
+      <map name="map-R6-haut" id="map-R6-haut">
+        <area alt="Rangée droite" coords="327,111,897,188" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="330,36,899,109" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme haute" coords="58,85,146,81,147,32,326,34,322,185,57,186" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="61,28,144,78" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face droite" coords="336,190,797,209" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="328,16,797,33" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+      <!-- R6 bas -->
+      <map name="map-R6-bas" id="map-R6-bas">
+        <area alt="Rangée droite" coords="294,100,811,188" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="290,27,813,97" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme basse" coords="13,190,290,190,285,17,191,15,190,125,10,126" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="16,25,188,122" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face droite" coords="368,189,814,209" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="362,9,813,25" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+
+      <!-- R7 haut -->
+      <map name="map-R7-haut" id="map-R7-haut">
+        <area alt="Rangée droite" coords="326,107,887,184" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="327,32,891,104" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme haute" coords="35,79,124,82,124,27,323,29,317,184,38,178" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="40,28,120,74" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face droite" coords="343,183,791,202" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="331,14,787,28" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+      <!-- R7 bas -->
+      <map name="map-R7-bas" id="map-R7-bas">
+        <area alt="Rangée droite" coords="302,127,823,200" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="296,42,822,124" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme basse" coords="25,140,200,138,201,29,292,33,292,203,22,205" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="21,36,196,135" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face droite" coords="374,201,822,228" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="359,18,821,40" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+
+      <!-- R8 haut -->
+      <map name="map-R8-haut" id="map-R8-haut">
+        <area alt="Rangée droite" coords="287,95,845,170" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="292,32,845,91" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme haute" coords="32,171,284,169,284,24,115,23,115,70,31,73" shape="poly" onclick="ouvrirCommentaire('Plateforme haute')" />
+        <area alt="WC haut" coords="31,18,113,67" shape="rect" onclick="ouvrirCommentaire('WC haut')" />
+        <area alt="Face droite" coords="293,170,842,186" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="289,13,840,28" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+      <!-- R8 bas -->
+      <map name="map-R8-bas" id="map-R8-bas">
+        <area alt="Rangée droite" coords="281,114,801,190" shape="rect" onclick="ouvrirCommentaire('Rangée droite')" />
+        <area alt="Rangée gauche" coords="279,38,802,112" shape="rect" onclick="ouvrirCommentaire('Rangée gauche')" />
+        <area alt="Plateforme basse" coords="21,133,186,133,185,31,272,30,271,192,20,192" shape="poly" onclick="ouvrirCommentaire('Plateforme basse')" />
+        <area alt="WC bas" coords="22,38,182,128" shape="rect" onclick="ouvrirCommentaire('WC bas')" />
+        <area alt="Face droite" coords="353,192,799,210" shape="rect" onclick="ouvrirCommentaire('Face droite')" />
+        <area alt="Face gauche" coords="342,21,773,36" shape="rect" onclick="ouvrirCommentaire('Face gauche')" />
+      </map>
+    </div>
   </div>
+
 </main>
 
-<!-- Fenêtre commentaire -->
+<!-- Modale commentaire -->
 <div id="commentaireModal" class="hidden">
   <h4 id="zoneTitre"></h4>
   <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
-  <input type="file" id="photo">
-  <button onclick="enregistrerDefaut()">Enregistrer</button>
+  <input type="file" id="photo" multiple />
+  <div class="btn-row">
+    <button onclick="enregistrerDefaut()">Enregistrer</button>
+    <button onclick="fermerCommentaire()">Fermer</button>
+  </div>
 </div>
 
-<!-- Historique -->
+<!-- Historique + export -->
 <section id="historique" class="hidden">
   <h2>Historique des défauts</h2>
+  <div class="btn-row">
+    <button onclick="exportXlsx()">Exporter ZIP (XLSX + photos)</button>
+  </div>
   <table id="defautTable">
     <thead>
-      <tr><th>Prénom</th><th>Rame</th><th>Remorque</th><th>Niveau</th><th>Zone</th><th>Commentaire</th></tr>
+      <tr>
+        <th>Prénom</th><th>Rame</th><th>Remorque</th><th>Niveau</th><th>Zone</th><th>Commentaire</th><th>Photos</th>
+      </tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- Script pour image map responsive -->
+<!-- Librairies -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/image-map-resizer/1.0.10/js/imageMapResizer.min.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    imageMapResize();
-  });
-</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
 <script src="script.js"></script>
 </body>
