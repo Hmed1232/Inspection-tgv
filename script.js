@@ -124,17 +124,38 @@ function enregistrerDefaut() {
 
   // Ajout au tableau
   const tbody = document.querySelector('#defautTable tbody');
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${escapeHtml(prenom)}</td>
-    <td>${escapeHtml(rame)}</td>
-    <td>${escapeHtml(currentRemorque)}</td>
-    <td>${escapeHtml(currentNiveau)}</td>
-    <td>${escapeHtml(currentZone)}</td>
-    <td>${escapeHtml(commentaire)}</td>
-    <td>${photos.length ? photos.map(p=>escapeHtml(p)).join(', ') : '-'}</td>
-  `;
-  tbody.appendChild(tr);
+const tr = document.createElement('tr');
+tr.innerHTML = `
+  <td>${escapeHtml(prenom)}</td>
+  <td>${escapeHtml(rame)}</td>
+  <td>${escapeHtml(currentRemorque)}</td>
+  <td>${escapeHtml(currentNiveau)}</td>
+  <td>${escapeHtml(currentZone)}</td>
+  <td class="comment-text">${escapeHtml(commentaire)}</td>
+  <td>${photos.length ? photos.map(p=>escapeHtml(p)).join(', ') : '-'}</td>
+  <td>
+    <button class="edit-btn" title="Modifier">✏️</button>
+    <button class="delete-btn" title="Supprimer">🗑️</button>
+  </td>
+`;
+
+// Ajout des événements
+tr.querySelector('.delete-btn').addEventListener('click', () => {
+  tr.remove();
+  // Optionnel : supprimer aussi de defauts[]
+});
+
+tr.querySelector('.edit-btn').addEventListener('click', () => {
+  const cell = tr.querySelector('.comment-text');
+  const newText = prompt("Modifier le commentaire :", cell.textContent);
+  if (newText !== null && newText.trim() !== "") {
+    cell.textContent = newText.trim();
+    // Optionnel : mettre à jour aussi dans defauts[]
+  }
+});
+
+tbody.appendChild(tr);
+
 
   document.getElementById('commentaire').value = '';
   fermerCommentaire();
@@ -292,3 +313,23 @@ function escapeHtml(str){
     .replaceAll('"','&quot;')
     .replaceAll("'",'&#039;');
 }
+
+document.querySelectorAll('.delete-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const comment = this.closest('.commentaire');
+    // Supprimer le commentaire du DOM
+    comment.remove();
+    // Optionnel : supprimer côté serveur si nécessaire
+  });
+});
+
+document.querySelectorAll('.edit-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const commentText = this.closest('.commentaire').querySelector('.comment-text');
+    const newText = prompt("Modifier le commentaire :", commentText.textContent);
+    if (newText !== null) {
+      commentText.textContent = newText;
+      // Optionnel : mettre à jour côté serveur
+    }
+  });
+});
