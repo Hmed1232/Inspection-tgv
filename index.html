@@ -8,6 +8,10 @@
 </head>
 <body>
 
+<div id="export-warning">
+  ⚠️ <strong>Exporter en ZIP avant de quitter la page — sinon tout sera perdu ! </strong>
+</div>
+
 <header>
   <h1>Inspection TGV Duplex</h1>
   <input type="text" id="prenom" placeholder="Votre prénom" />
@@ -209,14 +213,21 @@
 
 </main>
 
-<!-- Modale commentaire -->
+<!-- ✅ Modale commentaire améliorée -->
 <div id="commentaireModal" class="hidden">
-  <h4 id="zoneTitre"></h4>
-  <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
-  <input type="file" id="photo" multiple />
+  <h4 id="zoneTitre">Ajouter un commentaire</h4>
+
+  <div class="commentaire-form">
+    <label for="commentaire">✏️ Commentaire :</label>
+    <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
+
+    <label for="photo">📎 Ajouter une photo :</label>
+    <input type="file" id="photo" multiple />
+  </div>
+
   <div class="btn-row">
-    <button onclick="enregistrerDefaut()">Enregistrer</button>
-    <button onclick="fermerCommentaire()">Fermer</button>
+    <button onclick="enregistrerDefaut()">💾 Enregistrer</button>
+    <button onclick="fermerCommentaire()">❌ Fermer</button>
   </div>
 </div>
 
@@ -229,7 +240,7 @@
   <table id="defautTable">
     <thead>
       <tr>
-        <th>Prénom</th><th>Rame</th><th>Remorque</th><th>Niveau</th><th>Zone</th><th>Commentaire</th><th>Photos</th>
+        <th>Prénom</th><th>Rame</th><th>Remorque</th><th>Niveau</th><th>Zone</th><th>Commentaire</th><th>Photos</th><th>Actions</th>
       </tr>
     </thead>
     <tbody></tbody>
