@@ -86,3 +86,71 @@ th {
   background: #fafafa;
   text-align: left;
 }
+
+/* Message d’avertissement — styles isolés */
+#export-warning {
+  position: fixed;
+  top: 10px;
+  right: 15px;
+  background-color: #ff4d4d;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Optionnel : effet léger au survol */
+#export-warning:hover {
+  background-color: #e04343;
+}
+#commentaireModal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  margin: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  font-family: Arial, sans-serif;
+}
+
+.commentaire-form label {
+  display: block;
+  margin-top: 12px;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.commentaire-form textarea,
+.commentaire-form input[type="file"] {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+}
+
+.btn-row {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.btn-row button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background-color: #0078d4;
+  color: white;
+  transition: background 0.2s;
+}
+
+.btn-row button:hover {
+  background-color: #005a9e;
+}
