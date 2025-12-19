@@ -2,21 +2,98 @@
 let currentRemorque = '';
 let currentNiveau = '';
 let currentZone = '';
-const defauts = []; // {prenom, rame, remorque, niveau, zone, commentaire, photos: [name], photoFiles: [File]}
+const defauts = [];
+let db = null; // Base de données IndexedDB
 
-// ========= LocalStorage - Persistance des données =========
+// ========= IndexedDB - Stockage des images =========
 
-// Charger les défauts depuis localStorage au démarrage
-function chargerDefautsDepuisStorage() {
+// Initialiser IndexedDB
+async function initIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('InspectionTGV_DB', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('photos')) {
+        db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+  });
+}
+
+// Sauvegarder une photo dans IndexedDB
+async function sauvegarderPhoto(file, defautId) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['photos'], 'readwrite');
+    const store = transaction.objectStore('photos');
+    
+    const photoData = {
+      defautId: defautId,
+      name: file.name,
+      type: file.type,
+      file: file
+    };
+    
+    const request = store.add(photoData);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Récupérer toutes les photos d'un défaut
+async function recupererPhotos(defautId) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['photos'], 'readonly');
+    const store = transaction.objectStore('photos');
+    const request = store.getAll();
+    
+    request.onsuccess = () => {
+      const allPhotos = request.result;
+      const defautPhotos = allPhotos.filter(p => p.defautId === defautId);
+      resolve(defautPhotos);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Supprimer les photos d'un défaut
+async function supprimerPhotos(defautId) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['photos'], 'readwrite');
+    const store = transaction.objectStore('photos');
+    const request = store.getAll();
+    
+    request.onsuccess = () => {
+      const allPhotos = request.result;
+      const photosASupprimer = allPhotos.filter(p => p.defautId === defautId);
+      
+      photosASupprimer.forEach(photo => {
+        store.delete(photo.id);
+      });
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// ========= LocalStorage - Métadonnées uniquement =========
+
+async function chargerDefautsDepuisStorage() {
   const saved = localStorage.getItem('defautsTGV');
   if (saved) {
     try {
       const data = JSON.parse(saved);
-      // Restaurer les défauts (sans les fichiers photos qui ne peuvent pas être stockés)
-      data.forEach(d => {
-        defauts.push({...d, photoFiles: []}); // Les objets File ne peuvent pas être stockés
-        ajouterLigneTableau(d);
-      });
+      for (const d of data) {
+        // Récupérer les photos depuis IndexedDB
+        const photos = await recupererPhotos(d.id);
+        const photoFiles = photos.map(p => p.file);
+        
+        defauts.push({...d, photoFiles: photoFiles});
+        ajouterLigneTableau({...d, photos: photos.map(p => p.name)});
+      }
       if (defauts.length > 0) {
         document.getElementById('historique').classList.remove('hidden');
       }
@@ -26,9 +103,9 @@ function chargerDefautsDepuisStorage() {
   }
 }
 
-// Sauvegarder les défauts dans localStorage
 function sauvegarderDefautsStorage() {
   const dataToSave = defauts.map(d => ({
+    id: d.id,
     prenom: d.prenom,
     rame: d.rame,
     remorque: d.remorque,
@@ -40,10 +117,11 @@ function sauvegarderDefautsStorage() {
   localStorage.setItem('defautsTGV', JSON.stringify(dataToSave));
 }
 
-// Fonction pour ajouter une ligne au tableau
 function ajouterLigneTableau(defaut) {
   const tbody = document.querySelector('#defautTable tbody');
   const tr = document.createElement('tr');
+  tr.setAttribute('data-defaut-id', defaut.id);
+  
   tr.innerHTML = `
     <td>${escapeHtml(defaut.prenom)}</td>
     <td>${escapeHtml(defaut.rame)}</td>
@@ -58,18 +136,20 @@ function ajouterLigneTableau(defaut) {
     </td>
   `;
   
-  // Bouton supprimer
-  tr.querySelector('.delete-btn').addEventListener('click', () => {
+  tr.querySelector('.delete-btn').addEventListener('click', async () => {
     const index = Array.from(tbody.children).indexOf(tr);
+    const defautId = defauts[index].id;
+    
     tr.remove();
+    await supprimerPhotos(defautId);
     defauts.splice(index, 1);
     sauvegarderDefautsStorage();
+    
     if (defauts.length === 0) {
       document.getElementById('historique').classList.add('hidden');
     }
   });
   
-  // Bouton modifier
   tr.querySelector('.edit-btn').addEventListener('click', () => {
     const cell = tr.querySelector('.comment-text');
     const index = Array.from(tbody.children).indexOf(tr);
@@ -84,10 +164,15 @@ function ajouterLigneTableau(defaut) {
   tbody.appendChild(tr);
 }
 
-// Fonction pour effacer toutes les données
-function effacerToutesLesDonnees() {
-  if (confirm('Voulez-vous vraiment effacer tous les commentaires enregistrés ?')) {
+async function effacerToutesLesDonnees() {
+  if (confirm('Voulez-vous vraiment effacer tous les commentaires et photos enregistrés ?')) {
     localStorage.removeItem('defautsTGV');
+    
+    // Supprimer toutes les photos d'IndexedDB
+    const transaction = db.transaction(['photos'], 'readwrite');
+    const store = transaction.objectStore('photos');
+    store.clear();
+    
     defauts.length = 0;
     document.querySelector('#defautTable tbody').innerHTML = '';
     document.getElementById('historique').classList.add('hidden');
@@ -95,19 +180,19 @@ function effacerToutesLesDonnees() {
 }
 
 // ========= Initialisation =========
-document.addEventListener('DOMContentLoaded', () => {
-  // Charger les données sauvegardées
-  chargerDefautsDepuisStorage();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialiser IndexedDB
+  db = await initIndexedDB();
   
-  // Rendre les <area> responsives
+  // Charger les données sauvegardées
+  await chargerDefautsDepuisStorage();
+  
   if (typeof imageMapResize === 'function') {
     imageMapResize();
   }
   
-  // Construire l'overlay du schéma TGV
   setupSchemaOverlay();
 
-  // Rebuild overlays au resize
   window.addEventListener('resize', debounce(() => {
     setupSchemaOverlay();
     if (!document.getElementById('planSalle').classList.contains('hidden')) {
@@ -131,13 +216,11 @@ function selectRemorque(remorque) {
 function selectNiveau(niveau) {
   currentNiveau = niveau;
 
-  // Extérieur: bulle directe toutes remorques
   if (niveau === 'exterieur') {
     ouvrirCommentaire('Extérieur');
     return;
   }
 
-  // R4 spécifique: "haut" = R4.jpg, "bas" non applicable
   if (currentRemorque === 'R4') {
     if (niveau === 'haut') {
       chargerPlan('R4', 'haut');
@@ -147,7 +230,6 @@ function selectNiveau(niveau) {
     return;
   }
 
-  // R1,R2,R3,R5,R6,R7,R8
   if (niveau === 'haut' || niveau === 'bas') {
     chargerPlan(currentRemorque, niveau);
   }
@@ -198,7 +280,7 @@ function fermerCommentaire() {
   document.getElementById('commentaireModal').classList.add('hidden');
 }
 
-function enregistrerDefaut() {
+async function enregistrerDefaut() {
   const prenom = document.getElementById('prenom').value || '';
   const rame = document.getElementById('rame').value || '';
   const commentaire = document.getElementById('commentaire').value || '';
@@ -206,7 +288,11 @@ function enregistrerDefaut() {
   const photos = Array.from(fileInput.files || []).map(f => f.name);
   const photoFiles = Array.from(fileInput.files || []);
 
+  // Générer un ID unique pour ce défaut
+  const defautId = Date.now() + Math.random();
+
   const nouveauDefaut = {
+    id: defautId,
     prenom, 
     rame,
     remorque: currentRemorque,
@@ -217,9 +303,14 @@ function enregistrerDefaut() {
     photoFiles
   };
   
+  // Sauvegarder les photos dans IndexedDB
+  for (const file of photoFiles) {
+    await sauvegarderPhoto(file, defautId);
+  }
+  
   defauts.push(nouveauDefaut);
   ajouterLigneTableau(nouveauDefaut);
-  sauvegarderDefautsStorage(); // Sauvegarder après ajout
+  sauvegarderDefautsStorage();
 
   document.getElementById('commentaire').value = '';
   fermerCommentaire();
@@ -234,7 +325,6 @@ async function exportXlsx() {
     return;
   }
 
-  // 1) Générer XLSX
   const data = [
     ['Prénom','Rame','Remorque','Niveau','Zone','Commentaire','Photos']
   ];
@@ -259,11 +349,9 @@ async function exportXlsx() {
   const xlsxName = `Inspection_TGV_${dateStr}.xlsx`;
   const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
-  // 2) Créer le ZIP
   const zip = new JSZip();
   zip.file(xlsxName, xlsxArray);
 
-  // 3) Ajouter photos/
   const photosFolder = zip.folder("photos");
   for (const d of defauts) {
     if (d.photoFiles && d.photoFiles.length) {
@@ -274,13 +362,11 @@ async function exportXlsx() {
     }
   }
 
-  // 4) Télécharger le ZIP
   const zipBlob = await zip.generateAsync({ type: "blob" });
   saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
 }
 
 // ========= Overlays (surbrillances) =========
-// Génère des formes SVG par-dessus les images, à partir des <area> de la map
 
 function setupSchemaOverlay() {
   const img = document.getElementById('trainImage');
@@ -300,14 +386,11 @@ function setupPlanOverlay() {
 }
 
 function buildOverlayFromMap(img, mapEl, svgEl) {
-  // Clear
   while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
 
-  // Dimensions affichées
   const dw = img.clientWidth;
   const dh = img.clientHeight;
 
-  // Taille originale
   const nw = img.naturalWidth || dw;
   const nh = img.naturalHeight || dh;
 
