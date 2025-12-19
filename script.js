@@ -6,6 +6,9 @@ const defauts = []; // {prenom, rame, remorque, niveau, zone, commentaire, photo
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
+  // Charger les données sauvegardées
+  chargerDonneesSauvegardees();
+  
   // Rendre les <area> responsives
   if (typeof imageMapResize === 'function') {
     imageMapResize();
@@ -20,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
       setupPlanOverlay();
     }
   }, 120));
+  
+  // Sauvegarder automatiquement les champs prenom et rame
+  document.getElementById('prenom').addEventListener('input', sauvegarderDonnees);
+  document.getElementById('rame').addEventListener('input', sauvegarderDonnees);
 });
 
 /* ========= Sélection schéma / remorque / niveau ========= */
@@ -122,6 +129,9 @@ function enregistrerDefaut() {
     photoFiles
   });
 
+  // Sauvegarder dans localStorage
+  sauvegarderDonnees();
+
   // Ajout au tableau
   const tbody = document.querySelector('#defautTable tbody');
 const tr = document.createElement('tr');
@@ -141,16 +151,22 @@ tr.innerHTML = `
 
 // Ajout des événements
 tr.querySelector('.delete-btn').addEventListener('click', () => {
+  const index = Array.from(tbody.children).indexOf(tr);
   tr.remove();
-  // Optionnel : supprimer aussi de defauts[]
+  defauts.splice(index, 1);
+  sauvegarderDonnees();
 });
 
 tr.querySelector('.edit-btn').addEventListener('click', () => {
   const cell = tr.querySelector('.comment-text');
+  const index = Array.from(tbody.children).indexOf(tr);
   const newText = prompt("Modifier le commentaire :", cell.textContent);
   if (newText !== null && newText.trim() !== "") {
     cell.textContent = newText.trim();
-    // Optionnel : mettre à jour aussi dans defauts[]
+    if (defauts[index]) {
+      defauts[index].commentaire = newText.trim();
+      sauvegarderDonnees();
+    }
   }
 });
 
@@ -213,6 +229,14 @@ async function exportXlsx() {
   // 4) Télécharger le ZIP
   const zipBlob = await zip.generateAsync({ type: "blob" });
   saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
+  
+  // 5) Optionnel : vider localStorage après export réussi
+  if (confirm('Export réussi ! Voulez-vous effacer les données sauvegardées ?')) {
+    localStorage.removeItem('inspection_prenom');
+    localStorage.removeItem('inspection_rame');
+    localStorage.removeItem('inspection_defauts');
+    location.reload();
+  }
 }
 
 /* ========= Overlays (surbrillances) =========
@@ -314,22 +338,61 @@ function escapeHtml(str){
     .replaceAll("'",'&#039;');
 }
 
-document.querySelectorAll('.delete-btn').forEach(btn => {
-  btn.addEventListener('click', function () {
-    const comment = this.closest('.commentaire');
-    // Supprimer le commentaire du DOM
-    comment.remove();
-    // Optionnel : supprimer côté serveur si nécessaire
-  });
-});
+/* ========= Sauvegarde / Chargement localStorage ========= */
 
-document.querySelectorAll('.edit-btn').forEach(btn => {
-  btn.addEventListener('click', function () {
-    const commentText = this.closest('.commentaire').querySelector('.comment-text');
-    const newText = prompt("Modifier le commentaire :", commentText.textContent);
-    if (newText !== null) {
-      commentText.textContent = newText;
-      // Optionnel : mettre à jour côté serveur
-    }
-  });
-});
+function sauvegarderDonnees() {
+  const prenom = document.getElementById('prenom').value;
+  const rame = document.getElementById('rame').value;
+  
+  // Sauvegarder les champs de formulaire
+  localStorage.setItem('inspection_prenom', prenom);
+  localStorage.setItem('inspection_rame', rame);
+  
+  // Sauvegarder les défauts (sans les fichiers, car localStorage ne peut pas stocker des objets File)
+  const defautsSansFiles = defauts.map(d => ({
+    prenom: d.prenom,
+    rame: d.rame,
+    remorque: d.remorque,
+    niveau: d.niveau,
+    zone: d.zone,
+    commentaire: d.commentaire,
+    photos: d.photos
+  }));
+  
+  localStorage.setItem('inspection_defauts', JSON.stringify(defautsSansFiles));
+}
+
+function chargerDonneesSauvegardees() {
+  // Charger les champs de formulaire
+  const prenom = localStorage.getItem('inspection_prenom');
+  const rame = localStorage.getItem('inspection_rame');
+  
+  if (prenom) document.getElementById('prenom').value = prenom;
+  if (rame) document.getElementById('rame').value = rame;
+  
+  // Charger les défauts
+  const defautsSauvegardes = localStorage.getItem('inspection_defauts');
+  if (defautsSauvegardes) {
+    try {
+      const defautsCharges = JSON.parse(defautsSauvegardes);
+      
+      if (defautsCharges.length > 0) {
+        const tbody = document.querySelector('#defautTable tbody');
+        
+        defautsCharges.forEach((defaut, index) => {
+          // Ajouter au tableau defauts (sans photoFiles car non sauvegardables)
+          defauts.push({
+            ...defaut,
+            photoFiles: [] // Les fichiers sont perdus au rafraîchissement
+          });
+          
+          // Recréer la ligne dans le tableau
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escapeHtml(defaut.prenom)}</td>
+            <td>${escapeHtml(defaut.rame)}</td>
+            <td>${escapeHtml(defaut.remorque)}</td>
+            <td>${escapeHtml(defaut.niveau)}</td>
+            <td>${escapeHtml(defaut.zone)}</td>
+            <td class="comment-text">${escapeHtml(defaut.commentaire)}</td>
+            <td>${defaut.photos && defaut.photos.
