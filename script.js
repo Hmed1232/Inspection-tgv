@@ -2,19 +2,18 @@
 let currentRemorque = '';
 let currentNiveau = '';
 let currentZone = '';
-const defauts = [];
-let db = null; // Base de données IndexedDB
+const defauts = []; // {id, prenom, rame, remorque, niveau, zone, commentaire, photos: [name], photoFiles: [File]}
+let db = null;      // IndexedDB
 
 // ========= IndexedDB - Stockage des images =========
 
-// Initialiser IndexedDB
 async function initIndexedDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('InspectionTGV_DB', 1);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains('photos')) {
@@ -24,32 +23,30 @@ async function initIndexedDB() {
   });
 }
 
-// Sauvegarder une photo dans IndexedDB
 async function sauvegarderPhoto(file, defautId) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['photos'], 'readwrite');
     const store = transaction.objectStore('photos');
-    
+
     const photoData = {
       defautId: defautId,
       name: file.name,
       type: file.type,
       file: file
     };
-    
+
     const request = store.add(photoData);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-// Récupérer toutes les photos d'un défaut
 async function recupererPhotos(defautId) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['photos'], 'readonly');
     const store = transaction.objectStore('photos');
     const request = store.getAll();
-    
+
     request.onsuccess = () => {
       const allPhotos = request.result;
       const defautPhotos = allPhotos.filter(p => p.defautId === defautId);
@@ -59,17 +56,15 @@ async function recupererPhotos(defautId) {
   });
 }
 
-// Supprimer les photos d'un défaut
 async function supprimerPhotos(defautId) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['photos'], 'readwrite');
     const store = transaction.objectStore('photos');
     const request = store.getAll();
-    
+
     request.onsuccess = () => {
       const allPhotos = request.result;
       const photosASupprimer = allPhotos.filter(p => p.defautId === defautId);
-      
       photosASupprimer.forEach(photo => {
         store.delete(photo.id);
       });
@@ -79,27 +74,34 @@ async function supprimerPhotos(defautId) {
   });
 }
 
-// ========= LocalStorage - Métadonnées uniquement =========
+// ========= LocalStorage - Défauts + prénom/rame =========
 
 async function chargerDefautsDepuisStorage() {
   const saved = localStorage.getItem('defautsTGV');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      for (const d of data) {
-        // Récupérer les photos depuis IndexedDB
-        const photos = await recupererPhotos(d.id);
-        const photoFiles = photos.map(p => p.file);
-        
-        defauts.push({...d, photoFiles: photoFiles});
-        ajouterLigneTableau({...d, photos: photos.map(p => p.name)});
-      }
-      if (defauts.length > 0) {
-        document.getElementById('historique').classList.remove('hidden');
-      }
-    } catch(e) {
-      console.error('Erreur lors du chargement des données:', e);
+  if (!saved) return;
+
+  try {
+    const data = JSON.parse(saved);
+    for (const d of data) {
+      const photos = await recupererPhotos(d.id);
+      const photoFiles = photos.map(p => p.file);
+
+      const defautComplet = {
+        ...d,
+        photoFiles
+      };
+
+      defauts.push(defautComplet);
+      ajouterLigneTableau({
+        ...d,
+        photos: photos.map(p => p.name)
+      });
     }
+    if (defauts.length > 0) {
+      document.getElementById('historique').classList.remove('hidden');
+    }
+  } catch (e) {
+    console.error('Erreur lors du chargement des défauts :', e);
   }
 }
 
@@ -121,7 +123,7 @@ function ajouterLigneTableau(defaut) {
   const tbody = document.querySelector('#defautTable tbody');
   const tr = document.createElement('tr');
   tr.setAttribute('data-defaut-id', defaut.id);
-  
+
   tr.innerHTML = `
     <td>${escapeHtml(defaut.prenom)}</td>
     <td>${escapeHtml(defaut.rame)}</td>
@@ -135,21 +137,21 @@ function ajouterLigneTableau(defaut) {
       <button class="delete-btn" title="Supprimer">🗑️</button>
     </td>
   `;
-  
+
   tr.querySelector('.delete-btn').addEventListener('click', async () => {
     const index = Array.from(tbody.children).indexOf(tr);
     const defautId = defauts[index].id;
-    
+
     tr.remove();
     await supprimerPhotos(defautId);
     defauts.splice(index, 1);
     sauvegarderDefautsStorage();
-    
-    if (defauts.length === 0) {
+
+    if (!defauts.length) {
       document.getElementById('historique').classList.add('hidden');
     }
   });
-  
+
   tr.querySelector('.edit-btn').addEventListener('click', () => {
     const cell = tr.querySelector('.comment-text');
     const index = Array.from(tbody.children).indexOf(tr);
@@ -160,37 +162,61 @@ function ajouterLigneTableau(defaut) {
       sauvegarderDefautsStorage();
     }
   });
-  
+
   tbody.appendChild(tr);
 }
 
 async function effacerToutesLesDonnees() {
-  if (confirm('Voulez-vous vraiment effacer tous les commentaires et photos enregistrés ?')) {
-    localStorage.removeItem('defautsTGV');
-    
-    // Supprimer toutes les photos d'IndexedDB
+  if (!confirm('Voulez-vous vraiment effacer tous les commentaires, photos, prénom et rame ?')) return;
+
+  // Défauts
+  localStorage.removeItem('defautsTGV');
+  defauts.length = 0;
+  document.querySelector('#defautTable tbody').innerHTML = '';
+  document.getElementById('historique').classList.add('hidden');
+
+  // Photos
+  if (db) {
     const transaction = db.transaction(['photos'], 'readwrite');
     const store = transaction.objectStore('photos');
     store.clear();
-    
-    defauts.length = 0;
-    document.querySelector('#defautTable tbody').innerHTML = '';
-    document.getElementById('historique').classList.add('hidden');
   }
+
+  // Prénom + rame
+  localStorage.removeItem('tgv_prenom');
+  localStorage.removeItem('tgv_rame');
+  document.getElementById('prenom').value = '';
+  document.getElementById('rame').value = '';
 }
 
 // ========= Initialisation =========
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialiser IndexedDB
+  // IndexedDB
   db = await initIndexedDB();
-  
-  // Charger les données sauvegardées
+
+  // Charger les défauts
   await chargerDefautsDepuisStorage();
-  
+
+  // Restaurer prénom et rame
+  const savedPrenom = localStorage.getItem('tgv_prenom') || '';
+  const savedRame   = localStorage.getItem('tgv_rame')   || '';
+  document.getElementById('prenom').value = savedPrenom;
+  document.getElementById('rame').value   = savedRame;
+
+  // Sauvegarde auto prénom / rame
+  document.getElementById('prenom').addEventListener('input', (e) => {
+    localStorage.setItem('tgv_prenom', e.target.value);
+  });
+  document.getElementById('rame').addEventListener('input', (e) => {
+    localStorage.setItem('tgv_rame', e.target.value);
+  });
+
+  // Image map responsive
   if (typeof imageMapResize === 'function') {
     imageMapResize();
   }
-  
+
   setupSchemaOverlay();
 
   window.addEventListener('resize', debounce(() => {
@@ -271,12 +297,14 @@ function chargerPlan(remorque, niveau) {
 
 function ouvrirCommentaire(zone) {
   currentZone = zone;
-  document.getElementById('zoneTitre').textContent = `${currentRemorque} - ${currentNiveau} - ${zone}`;
+  document.getElementById('zoneTitre').textContent =
+    `${currentRemorque} - ${currentNiveau} - ${zone}`;
   document.getElementById('commentaireModal').classList.remove('hidden');
 }
 
 function fermerCommentaire() {
   document.getElementById('photo').value = '';
+  document.getElementById('commentaire').value = '';
   document.getElementById('commentaireModal').classList.add('hidden');
 }
 
@@ -285,15 +313,14 @@ async function enregistrerDefaut() {
   const rame = document.getElementById('rame').value || '';
   const commentaire = document.getElementById('commentaire').value || '';
   const fileInput = document.getElementById('photo');
-  const photos = Array.from(fileInput.files || []).map(f => f.name);
   const photoFiles = Array.from(fileInput.files || []);
+  const photos = photoFiles.map(f => f.name);
 
-  // Générer un ID unique pour ce défaut
   const defautId = Date.now() + Math.random();
 
   const nouveauDefaut = {
     id: defautId,
-    prenom, 
+    prenom,
     rame,
     remorque: currentRemorque,
     niveau: currentNiveau,
@@ -302,17 +329,15 @@ async function enregistrerDefaut() {
     photos,
     photoFiles
   };
-  
-  // Sauvegarder les photos dans IndexedDB
+
   for (const file of photoFiles) {
     await sauvegarderPhoto(file, defautId);
   }
-  
+
   defauts.push(nouveauDefaut);
   ajouterLigneTableau(nouveauDefaut);
   sauvegarderDefautsStorage();
 
-  document.getElementById('commentaire').value = '';
   fermerCommentaire();
   document.getElementById('historique').classList.remove('hidden');
 }
@@ -404,7 +429,10 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
   const areas = Array.from(mapEl.querySelectorAll('area'));
   areas.forEach(a => {
     const shape = (a.getAttribute('shape') || 'rect').toLowerCase();
-    const coords = (a.getAttribute('coords') || '').split(',').map(v => Number(v.trim())).filter(v => !isNaN(v));
+    const coords = (a.getAttribute('coords') || '')
+      .split(',')
+      .map(v => Number(v.trim()))
+      .filter(v => !isNaN(v));
     if (!coords.length) return;
 
     if (shape === 'rect' || shape === '0' || shape === 'rectangle') {
@@ -443,7 +471,7 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
 
 // ========= Utilitaires =========
 
-function debounce(fn, delay=150){
+function debounce(fn, delay=150) {
   let t;
   return (...args) => {
     clearTimeout(t);
