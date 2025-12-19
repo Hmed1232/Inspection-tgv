@@ -1,18 +1,109 @@
-// Etat global
+// ========= État global =========
 let currentRemorque = '';
 let currentNiveau = '';
 let currentZone = '';
 const defauts = []; // {prenom, rame, remorque, niveau, zone, commentaire, photos: [name], photoFiles: [File]}
 
-// Init
+// ========= LocalStorage - Persistance des données =========
+
+// Charger les défauts depuis localStorage au démarrage
+function chargerDefautsDepuisStorage() {
+  const saved = localStorage.getItem('defautsTGV');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      // Restaurer les défauts (sans les fichiers photos qui ne peuvent pas être stockés)
+      data.forEach(d => {
+        defauts.push({...d, photoFiles: []}); // Les objets File ne peuvent pas être stockés
+        ajouterLigneTableau(d);
+      });
+      if (defauts.length > 0) {
+        document.getElementById('historique').classList.remove('hidden');
+      }
+    } catch(e) {
+      console.error('Erreur lors du chargement des données:', e);
+    }
+  }
+}
+
+// Sauvegarder les défauts dans localStorage
+function sauvegarderDefautsStorage() {
+  const dataToSave = defauts.map(d => ({
+    prenom: d.prenom,
+    rame: d.rame,
+    remorque: d.remorque,
+    niveau: d.niveau,
+    zone: d.zone,
+    commentaire: d.commentaire,
+    photos: d.photos
+  }));
+  localStorage.setItem('defautsTGV', JSON.stringify(dataToSave));
+}
+
+// Fonction pour ajouter une ligne au tableau
+function ajouterLigneTableau(defaut) {
+  const tbody = document.querySelector('#defautTable tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${escapeHtml(defaut.prenom)}</td>
+    <td>${escapeHtml(defaut.rame)}</td>
+    <td>${escapeHtml(defaut.remorque)}</td>
+    <td>${escapeHtml(defaut.niveau)}</td>
+    <td>${escapeHtml(defaut.zone)}</td>
+    <td class="comment-text">${escapeHtml(defaut.commentaire)}</td>
+    <td>${defaut.photos && defaut.photos.length ? defaut.photos.map(p=>escapeHtml(p)).join(', ') : '-'}</td>
+    <td>
+      <button class="edit-btn" title="Modifier">✏️</button>
+      <button class="delete-btn" title="Supprimer">🗑️</button>
+    </td>
+  `;
+  
+  // Bouton supprimer
+  tr.querySelector('.delete-btn').addEventListener('click', () => {
+    const index = Array.from(tbody.children).indexOf(tr);
+    tr.remove();
+    defauts.splice(index, 1);
+    sauvegarderDefautsStorage();
+    if (defauts.length === 0) {
+      document.getElementById('historique').classList.add('hidden');
+    }
+  });
+  
+  // Bouton modifier
+  tr.querySelector('.edit-btn').addEventListener('click', () => {
+    const cell = tr.querySelector('.comment-text');
+    const index = Array.from(tbody.children).indexOf(tr);
+    const newText = prompt("Modifier le commentaire :", cell.textContent);
+    if (newText !== null && newText.trim() !== "") {
+      cell.textContent = newText.trim();
+      defauts[index].commentaire = newText.trim();
+      sauvegarderDefautsStorage();
+    }
+  });
+  
+  tbody.appendChild(tr);
+}
+
+// Fonction pour effacer toutes les données
+function effacerToutesLesDonnees() {
+  if (confirm('Voulez-vous vraiment effacer tous les commentaires enregistrés ?')) {
+    localStorage.removeItem('defautsTGV');
+    defauts.length = 0;
+    document.querySelector('#defautTable tbody').innerHTML = '';
+    document.getElementById('historique').classList.add('hidden');
+  }
+}
+
+// ========= Initialisation =========
 document.addEventListener('DOMContentLoaded', () => {
   // Charger les données sauvegardées
-  chargerDonneesSauvegardees();
+  chargerDefautsDepuisStorage();
   
   // Rendre les <area> responsives
   if (typeof imageMapResize === 'function') {
     imageMapResize();
   }
+  
   // Construire l'overlay du schéma TGV
   setupSchemaOverlay();
 
@@ -23,13 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
       setupPlanOverlay();
     }
   }, 120));
-  
-  // Sauvegarder automatiquement les champs prenom et rame
-  document.getElementById('prenom').addEventListener('input', sauvegarderDonnees);
-  document.getElementById('rame').addEventListener('input', sauvegarderDonnees);
 });
 
-/* ========= Sélection schéma / remorque / niveau ========= */
+// ========= Sélection schéma / remorque / niveau =========
 
 function selectRemorque(remorque) {
   currentRemorque = remorque;
@@ -66,7 +153,7 @@ function selectNiveau(niveau) {
   }
 }
 
-/* ========= Chargement plan + overlay ========= */
+// ========= Chargement plan + overlay =========
 
 function chargerPlan(remorque, niveau) {
   const img = document.getElementById('planImage');
@@ -98,7 +185,7 @@ function chargerPlan(remorque, niveau) {
   };
 }
 
-/* ========= Commentaires ========= */
+// ========= Commentaires =========
 
 function ouvrirCommentaire(zone) {
   currentZone = zone;
@@ -119,66 +206,27 @@ function enregistrerDefaut() {
   const photos = Array.from(fileInput.files || []).map(f => f.name);
   const photoFiles = Array.from(fileInput.files || []);
 
-  defauts.push({
-    prenom, rame,
+  const nouveauDefaut = {
+    prenom, 
+    rame,
     remorque: currentRemorque,
     niveau: currentNiveau,
     zone: currentZone,
     commentaire,
     photos,
     photoFiles
-  });
-
-  // Sauvegarder dans localStorage
-  sauvegarderDonnees();
-
-  // Ajout au tableau
-  const tbody = document.querySelector('#defautTable tbody');
-const tr = document.createElement('tr');
-tr.innerHTML = `
-  <td>${escapeHtml(prenom)}</td>
-  <td>${escapeHtml(rame)}</td>
-  <td>${escapeHtml(currentRemorque)}</td>
-  <td>${escapeHtml(currentNiveau)}</td>
-  <td>${escapeHtml(currentZone)}</td>
-  <td class="comment-text">${escapeHtml(commentaire)}</td>
-  <td>${photos.length ? photos.map(p=>escapeHtml(p)).join(', ') : '-'}</td>
-  <td>
-    <button class="edit-btn" title="Modifier">✏️</button>
-    <button class="delete-btn" title="Supprimer">🗑️</button>
-  </td>
-`;
-
-// Ajout des événements
-tr.querySelector('.delete-btn').addEventListener('click', () => {
-  const index = Array.from(tbody.children).indexOf(tr);
-  tr.remove();
-  defauts.splice(index, 1);
-  sauvegarderDonnees();
-});
-
-tr.querySelector('.edit-btn').addEventListener('click', () => {
-  const cell = tr.querySelector('.comment-text');
-  const index = Array.from(tbody.children).indexOf(tr);
-  const newText = prompt("Modifier le commentaire :", cell.textContent);
-  if (newText !== null && newText.trim() !== "") {
-    cell.textContent = newText.trim();
-    if (defauts[index]) {
-      defauts[index].commentaire = newText.trim();
-      sauvegarderDonnees();
-    }
-  }
-});
-
-tbody.appendChild(tr);
-
+  };
+  
+  defauts.push(nouveauDefaut);
+  ajouterLigneTableau(nouveauDefaut);
+  sauvegarderDefautsStorage(); // Sauvegarder après ajout
 
   document.getElementById('commentaire').value = '';
   fermerCommentaire();
   document.getElementById('historique').classList.remove('hidden');
 }
 
-/* ========= Export ZIP (XLSX + photos/) ========= */
+// ========= Export ZIP (XLSX + photos/) =========
 
 async function exportXlsx() {
   if (!defauts.length) {
@@ -229,19 +277,10 @@ async function exportXlsx() {
   // 4) Télécharger le ZIP
   const zipBlob = await zip.generateAsync({ type: "blob" });
   saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
-  
-  // 5) Optionnel : vider localStorage après export réussi
-  if (confirm('Export réussi ! Voulez-vous effacer les données sauvegardées ?')) {
-    localStorage.removeItem('inspection_prenom');
-    localStorage.removeItem('inspection_rame');
-    localStorage.removeItem('inspection_defauts');
-    location.reload();
-  }
 }
 
-/* ========= Overlays (surbrillances) =========
-   Génère des formes SVG par-dessus les images, à partir des <area> de la map
-*/
+// ========= Overlays (surbrillances) =========
+// Génère des formes SVG par-dessus les images, à partir des <area> de la map
 
 function setupSchemaOverlay() {
   const img = document.getElementById('trainImage');
@@ -319,7 +358,7 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
   });
 }
 
-/* ========= Utilitaires ========= */
+// ========= Utilitaires =========
 
 function debounce(fn, delay=150){
   let t;
@@ -337,62 +376,3 @@ function escapeHtml(str){
     .replaceAll('"','&quot;')
     .replaceAll("'",'&#039;');
 }
-
-/* ========= Sauvegarde / Chargement localStorage ========= */
-
-function sauvegarderDonnees() {
-  const prenom = document.getElementById('prenom').value;
-  const rame = document.getElementById('rame').value;
-  
-  // Sauvegarder les champs de formulaire
-  localStorage.setItem('inspection_prenom', prenom);
-  localStorage.setItem('inspection_rame', rame);
-  
-  // Sauvegarder les défauts (sans les fichiers, car localStorage ne peut pas stocker des objets File)
-  const defautsSansFiles = defauts.map(d => ({
-    prenom: d.prenom,
-    rame: d.rame,
-    remorque: d.remorque,
-    niveau: d.niveau,
-    zone: d.zone,
-    commentaire: d.commentaire,
-    photos: d.photos
-  }));
-  
-  localStorage.setItem('inspection_defauts', JSON.stringify(defautsSansFiles));
-}
-
-function chargerDonneesSauvegardees() {
-  // Charger les champs de formulaire
-  const prenom = localStorage.getItem('inspection_prenom');
-  const rame = localStorage.getItem('inspection_rame');
-  
-  if (prenom) document.getElementById('prenom').value = prenom;
-  if (rame) document.getElementById('rame').value = rame;
-  
-  // Charger les défauts
-  const defautsSauvegardes = localStorage.getItem('inspection_defauts');
-  if (defautsSauvegardes) {
-    try {
-      const defautsCharges = JSON.parse(defautsSauvegardes);
-      
-      if (defautsCharges.length > 0) {
-        const tbody = document.querySelector('#defautTable tbody');
-        
-        defautsCharges.forEach((defaut, index) => {
-          // Ajouter au tableau defauts (sans photoFiles car non sauvegardables)
-          defauts.push({
-            ...defaut,
-            photoFiles: [] // Les fichiers sont perdus au rafraîchissement
-          });
-          
-          // Recréer la ligne dans le tableau
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${escapeHtml(defaut.prenom)}</td>
-            <td>${escapeHtml(defaut.rame)}</td>
-            <td>${escapeHtml(defaut.remorque)}</td>
-            <td>${escapeHtml(defaut.niveau)}</td>
-            <td>${escapeHtml(defaut.zone)}</td>
-            <td class="comment-text">${escapeHtml(defaut.commentaire)}</td>
-            <td>${defaut.photos && defaut.photos.
