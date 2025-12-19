@@ -9,7 +9,7 @@
 <body>
 
 <div id="export-warning">
-  ⚠️ <strong>Exporter en ZIP avant de quitter la page — sinon tout sera perdu ! </strong>
+  ⚠️ <strong>Les données sont sauvegardées automatiquement dans votre navigateur</strong>
 </div>
 
 <header>
@@ -222,7 +222,7 @@
     <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
 
     <label for="photo">📎 Ajouter une photo :</label>
-    <input type="file" id="photo" accept="image/*" capture="environment" multiple />
+    <input type="file" id="photo" multiple />
   </div>
 
   <div class="btn-row">
@@ -235,7 +235,10 @@
 <section id="historique" class="hidden">
   <h2>Historique des défauts</h2>
   <div class="btn-row">
-    <button onclick="exportXlsx()">Exporter ZIP (XLSX + photos)</button>
+    <button onclick="exportXlsx()">📥 Exporter ZIP (XLSX + photos)</button>
+    <button onclick="effacerToutesLesDonnees()" style="background-color: #f44336; color: white;">
+      🗑️ Effacer toutes les données
+    </button>
   </div>
   <table id="defautTable">
     <thead>
