@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Checklist de vérification TGV</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+
+    .progress {
+      font-size: 18px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    h2 {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin: 25px 0 15px 0;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid #e0e0e0;
+      transition: background 0.2s;
+    }
+
+    .checklist-item:hover {
+      background: #f9f9f9;
+    }
+
+    .checklist-item.checked {
+      background: #e8f5e9;
+    }
+
+    .checklist-item input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      margin-right: 15px;
+      cursor: pointer;
+    }
+
+    .checklist-item label {
+      flex: 1;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    button {
+      flex: 1;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-reset {
+      background: #f44336;
+      color: white;
+    }
+
+    .btn-export {
+      background: #2196F3;
+      color: white;
+    }
+
+    .btn-close {
+      background: #9E9E9E;
+      color: white;
+    }
+
+    .notes-section {
+      margin-top: 20px;
+    }
+
+    .notes-section textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      resize: vertical;
+    }
+
+    .notes-section label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📋 Checklist de vérification TGV Duplex</h1>
+  
+  <div class="info-bar">
+    <div class="progress">
+      <span id="checkedCount">0</span> / <span id="totalCount">0</span> éléments vérifiés
+    </div>
+    <div style="font-size: 14px; color: #666;">
+      <span id="timestamp"></span>
+    </div>
+  </div>
+
+  <h2>🚃 Vérifications en salle</h2>
+  <div id="salle-checks"></div>
+
+  <h2>🚂 Vérifications en motrice</h2>
+  <div id="motrice-checks"></div>
+
+  <div class="notes-section">
+    <label for="notes">📝 Notes additionnelles :</label>
+    <textarea id="notes" placeholder="Ajoutez des observations supplémentaires..."></textarea>
+  </div>
+
+  <div class="btn-container">
+    <button class="btn-reset" onclick="reinitialiserChecklist()">🔄 Réinitialiser</button>
+    <button class="btn-export" onclick="exporterChecklist()">💾 Exporter PDF</button>
+    <button class="btn-close" onclick="window.close()">❌ Fermer</button>
+  </div>
+</div>
+
+<script>
+  const checklistSalle = [
+    'Fonctionnel des stores',
+    'Casse des pieds de siège + bouton + fonctionnel',
+    'Contrôle des dates sur les baies (si < 2006, noter la date)',
+    'État des aiguilletés',
+    'Pièces manquantes',
+    'État des miroirs',
+    'Grilles éjecto et grilles de ventilation',
+    'Pater à vérifier',
+    'Tables dans les carrés',
+    'Vasques de luminaire',
+    'Nez d\'estrade',
+    'Clayette',
+    'État des voussoirs, vantaux de salle',
+    'Contrôle des WC'
+  ];
+
+  const checklistMotrice = [
+    'Revêtement de sol',
+    'Repose pied',
+    'Vasques luminaire coursives',
+    'Pupitre',
+    'Grille de ventilation',
+    'Siège accompagnateur'
+  ];
+
+  let checkStates = {};
+
+  function chargerChecklistStorage() {
+    const saved = localStorage.getItem('tgv_checklist');
+    if (saved) {
+      try {
+        checkStates = JSON.parse(saved);
+      } catch(e) {
+        checkStates = {};
+      }
+    }
+
+    const savedNotes = localStorage.getItem('tgv_checklist_notes');
+    if (savedNotes) {
+      document.getElementById('notes').value = savedNotes;
+    }
+  }
+
+  function sauvegarderChecklistStorage() {
+    localStorage.setItem('tgv_checklist', JSON.stringify(checkStates));
+  }
+
+  function genererChecklist(items, containerId) {
+    const container = document.getElementById(containerId);
+    items.forEach((item, index) => {
+      const id = `${containerId}-${index}`;
+      const isChecked = checkStates[id] || false;
+
+      const div = document.createElement('div');
+      div.className = 'checklist-item' + (isChecked ? ' checked' : '');
+      div.innerHTML = `
+        <input type="checkbox" id="${id}" ${isChecked ? 'checked' : ''}>
+        <label for="${id}">${item}</label>
+      `;
+
+      const checkbox = div.querySelector('input');
+      checkbox.addEventListener('change', function() {
+        checkStates[id] = this.checked;
+        sauvegarderChecklistStorage();
+        div.classList.toggle('checked', this.checked);
+        mettreAJourCompteur();
+      });
+
+      container.appendChild(div);
+    });
+  }
+
+  function mettreAJourCompteur() {
+    const totalCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    const checkedCheckboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+    
+    document.getElementById('totalCount').textContent = totalCheckboxes.length;
+    document.getElementById('checkedCount').textContent = checkedCheckboxes.length;
+  }
+
+  function reinitialiserChecklist() {
+    if (!confirm('Voulez-vous vraiment réinitialiser toute la checklist ?')) return;
+    
+    checkStates = {};
+    localStorage.removeItem('tgv_checklist');
+    localStorage.removeItem('tgv_checklist_notes');
+    document.getElementById('notes').value = '';
+    
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = false;
+      cb.parentElement.classList.remove('checked');
+    });
+    
+    mettreAJourCompteur();
+  }
+
+  function exporterChecklist() {
+    const prenom = localStorage.getItem('tgv_prenom') || 'Inconnu';
+    const rame = localStorage.getItem('tgv_rame') || 'Non spécifié';
+    const notes = document.getElementById('notes').value || 'Aucune note';
+    
+    let rapport = `CHECKLIST DE VÉRIFICATION TGV DUPLEX\n`;
+    rapport += `==========================================\n\n`;
+    rapport += `Inspecteur : ${prenom}\n`;
+    rapport += `Rame : ${rame}\n`;
+    rapport += `Date : ${new Date().toLocaleString('fr-FR')}\n\n`;
+    
+    rapport += `VÉRIFICATIONS EN SALLE\n`;
+    rapport += `----------------------\n`;
+    checklistSalle.forEach((item, i) => {
+      const id = `salle-checks-${i}`;
+      const status = checkStates[id] ? '✅' : '❌';
+      rapport += `${status} ${item}\n`;
+    });
+    
+    rapport += `\nVÉRIFICATIONS EN MOTRICE\n`;
+    rapport += `------------------------\n`;
+    checklistMotrice.forEach((item, i) => {
+      const id = `motrice-checks-${i}`;
+      const status = checkStates[id] ? '✅' : '❌';
+      rapport += `${status} ${item}\n`;
+    });
+    
+    rapport += `\nNOTES ADDITIONNELLES\n`;
+    rapport += `--------------------\n`;
+    rapport += notes;
+    
+    const blob = new Blob([rapport], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Checklist_TGV_${rame}_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('notes').addEventListener('input', (e) => {
+    localStorage.setItem('tgv_checklist_notes', e.target.value);
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    chargerChecklistStorage();
+    genererChecklist(checklistSalle, 'salle-checks');
+    genererChecklist(checklistMotrice, 'motrice-checks');
+    mettreAJourCompteur();
+    
+    document.getElementById('timestamp').textContent = 
+      new Date().toLocaleString('fr-FR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+  });
+</script>
+
+</body>
+</html>
