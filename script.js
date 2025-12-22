@@ -370,8 +370,10 @@ async function exportXlsx() {
   XLSX.utils.book_append_sheet(wb, ws, 'Remarques');
 
   const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const xlsxName = `Inspection_TGV_${dateStr}.xlsx`;
+  const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const heure = `${String(now.getHours()).padStart(2,'0')}h${String(now.getMinutes()).padStart(2,'0')}`;
+  
+  const xlsxName = `Inspection_TGV_${date}_${heure}.xlsx`;
   const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
   const zip = new JSZip();
@@ -388,8 +390,9 @@ async function exportXlsx() {
   }
 
   const zipBlob = await zip.generateAsync({ type: "blob" });
-  saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
+  saveAs(zipBlob, `Inspection_TGV_${date}_${heure}.zip`);
 }
+
 
 // ========= Overlays (surbrillances) =========
 
@@ -493,5 +496,6 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
 
 
