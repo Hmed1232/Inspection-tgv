@@ -23,6 +23,12 @@ async function initIndexedDB() {
   });
 }
 
+// ========= Ouvrir la checklist =========
+function ouvrirChecklist() {
+  window.open('checklist.html', '_blank');
+}
+
+
 async function sauvegarderPhoto(file, defautId) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['photos'], 'readwrite');
@@ -487,3 +493,4 @@ function escapeHtml(str){
     .replaceAll('"','&quot;')
     .replaceAll("'",'&#039;');
 }
+
