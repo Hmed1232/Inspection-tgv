@@ -398,8 +398,14 @@ async function enregistrerDefaut() {
   const photos = photoFiles.map(f => f.name);
 
   // Vérification pour les motrices
-  if (currentRemorque.startsWith('M') && !currentZone) {
+  if (currentRemorque.startsWith('M') && (!currentZone || currentZone === '')) {
     alert('Veuillez sélectionner une zone de la motrice');
+    return;
+  }
+  
+  // Vérification pour les remorques avec liste
+  if (!currentRemorque.startsWith('M') && currentNiveau !== 'exterieur' && (!currentZone || currentZone === '')) {
+    alert('Veuillez sélectionner une zone');
     return;
   }
 
@@ -428,6 +434,7 @@ async function enregistrerDefaut() {
   fermerCommentaire();
   document.getElementById('historique').classList.remove('hidden');
 }
+
 
 function ouvrirCommentaireAvecListe(remorque, niveau, zonePreSelectionnee = '') {
   currentRemorque = remorque;
@@ -703,4 +710,5 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
 
