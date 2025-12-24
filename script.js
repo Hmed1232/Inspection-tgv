@@ -243,13 +243,24 @@ function selectRemorque(remorque) {
   document.getElementById('niveauSelection').classList.remove('hidden');
 }
 
-
 function ouvrirCommentaireMotrice(motrice) {
   currentRemorque = motrice;
-  currentNiveau = 'motrice'; // Niveau spécial pour les motrices
+  currentNiveau = 'motrice';
+  currentZone = ''; // Réinitialiser la zone
   
   // Modifier le titre de la modale
   document.getElementById('zoneTitre').textContent = `${motrice} - Sélectionnez une zone`;
+  
+  // Supprimer les éléments des remorques s'ils existent
+  const selectZoneRemorque = document.getElementById('zoneSelect');
+  if (selectZoneRemorque) {
+    selectZoneRemorque.remove();
+  }
+  
+  const noteInfo = document.getElementById('noteInfoZone');
+  if (noteInfo) {
+    noteInfo.remove();
+  }
   
   // Créer/afficher le sélecteur de zone motrice
   let selectZone = document.getElementById('zoneMotriceSelect');
@@ -257,17 +268,18 @@ function ouvrirCommentaireMotrice(motrice) {
     selectZone = document.createElement('select');
     selectZone.id = 'zoneMotriceSelect';
     selectZone.style.cssText = 'width: 100%; padding: 10px; margin-bottom: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 5px;';
-    selectZone.innerHTML = `
-      <option value="">-- Choisir une zone --</option>
-      <option value="Extérieur">Extérieur</option>
-      <option value="Local technique">Local technique</option>
-      <option value="Cabine de conduite">Cabine de conduite</option>
-    `;
     
-    // Insérer le select avant le commentaire
     const form = document.querySelector('#commentaireModal .commentaire-form');
     form.insertBefore(selectZone, form.firstChild);
   }
+  
+  // Remplir les options
+  selectZone.innerHTML = `
+    <option value="">-- Choisir une zone --</option>
+    <option value="Extérieur">Extérieur</option>
+    <option value="Local technique">Local technique</option>
+    <option value="Cabine de conduite">Cabine de conduite</option>
+  `;
   
   // Réinitialiser la sélection
   selectZone.value = '';
@@ -281,6 +293,7 @@ function ouvrirCommentaireMotrice(motrice) {
   // Afficher la modale
   document.getElementById('commentaireModal').classList.remove('hidden');
 }
+
 
 
 function selectNiveau(niveau) {
@@ -411,6 +424,13 @@ async function enregistrerDefaut() {
 function ouvrirCommentaireAvecListe(remorque, niveau, zonePreSelectionnee = '') {
   currentRemorque = remorque;
   currentNiveau = niveau;
+  currentZone = ''; // Réinitialiser la zone
+  
+  // Supprimer le select de motrice s'il existe
+  const selectZoneMotrice = document.getElementById('zoneMotriceSelect');
+  if (selectZoneMotrice) {
+    selectZoneMotrice.remove();
+  }
   
   let options = [];
   let noteInfo = '';
@@ -495,7 +515,6 @@ function ouvrirCommentaireAvecListe(remorque, niveau, zonePreSelectionnee = '') 
   
   // Pré-sélectionner si zone cliquée sur le plan
   if (zonePreSelectionnee) {
-    // Essayer de trouver une correspondance (approximative si nécessaire)
     const optionTrouvee = options.find(opt => 
       opt.toLowerCase().includes(zonePreSelectionnee.toLowerCase()) ||
       zonePreSelectionnee.toLowerCase().includes(opt.toLowerCase())
@@ -675,4 +694,5 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
 
