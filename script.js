@@ -219,30 +219,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupSchemaOverlay();
 
-  // Recalculer au resize et à l'orientation change (mobile)
   window.addEventListener('resize', debounce(() => {
     setupSchemaOverlay();
     if (!document.getElementById('planSalle').classList.contains('hidden')) {
       setupPlanOverlay();
     }
-    // Forcer imageMapResize à recalculer
-    if (typeof imageMapResize === 'function') {
-      imageMapResize();
-    }
-  }, 150));
-
-  // Détection changement d'orientation sur mobile
-  window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
-      setupSchemaOverlay();
-      if (!document.getElementById('planSalle').classList.contains('hidden')) {
-        setupPlanOverlay();
-      }
-      if (typeof imageMapResize === 'function') {
-        imageMapResize();
-      }
-    }, 200);
-  });
+  }, 120));
 });
 
 // ========= Sélection schéma / remorque / niveau =========
@@ -252,6 +234,7 @@ function selectRemorque(remorque) {
 
   // Si c'est une motrice (M1 ou M2)
   if (remorque.startsWith('M')) {
+    alert(`Zone technique : ${remorque}`);
     ouvrirCommentaireMotrice(remorque);
     return;
   }
@@ -347,16 +330,12 @@ function chargerPlan(remorque, niveau) {
   planSalle.classList.remove('hidden');
 
   img.onload = () => {
-    // Petit délai pour s'assurer que les dimensions sont correctes
-    setTimeout(() => {
-      setupPlanOverlay();
-      if (typeof imageMapResize === 'function') {
-        imageMapResize();
-      }
-    }, 50);
+    setupPlanOverlay();
+    if (typeof imageMapResize === 'function') {
+      imageMapResize();
+    }
   };
 }
-
 
 // ========= Commentaires =========
 
@@ -451,7 +430,7 @@ async function exportXlsx() {
   const now = new Date();
   const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const heure = `${String(now.getHours()).padStart(2,'0')}h${String(now.getMinutes()).padStart(2,'0')}`;
-  
+
   const xlsxName = `Inspection_TGV_${date}_${heure}.xlsx`;
   const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
@@ -480,13 +459,6 @@ function setupSchemaOverlay() {
   const map = document.getElementById('train-map');
   const svg = document.getElementById('schemaOverlay');
   if (!img || !map || !svg) return;
-  
-  // Attendre que l'image soit complètement chargée
-  if (!img.complete || img.naturalWidth === 0) {
-    img.onload = () => buildOverlayFromMap(img, map, svg);
-    return;
-  }
-  
   buildOverlayFromMap(img, map, svg);
 }
 
@@ -496,13 +468,6 @@ function setupPlanOverlay() {
   const map = document.getElementById(useMap);
   const svg = document.getElementById('planOverlay');
   if (!img || !map || !svg) return;
-  
-  // Attendre que l'image soit complètement chargée
-  if (!img.complete || img.naturalWidth === 0) {
-    img.onload = () => buildOverlayFromMap(img, map, svg);
-    return;
-  }
-  
   buildOverlayFromMap(img, map, svg);
 }
 
@@ -514,11 +479,6 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
 
   const nw = img.naturalWidth || dw;
   const nh = img.naturalHeight || dh;
-
-  if (nw === 0 || nh === 0) {
-    console.warn('Image pas encore chargée');
-    return;
-  }
 
   const sx = dw / nw;
   const sy = dh / nh;
@@ -570,7 +530,6 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
   });
 }
 
-
 // ========= Utilitaires =========
 
 function debounce(fn, delay=150) {
@@ -595,8 +554,3 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
-
-
-
-
-
