@@ -232,12 +232,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 function selectRemorque(remorque) {
   currentRemorque = remorque;
 
+  // Si c'est une motrice (M1 ou M2)
   if (remorque.startsWith('M')) {
-    alert(`Zone technique : ${remorque}`);
+    ouvrirCommentaireMotrice(remorque);
     return;
   }
+  
+  // Pour les remorques normales
   document.getElementById('niveauSelection').classList.remove('hidden');
 }
+
+
+function ouvrirCommentaireMotrice(motrice) {
+  currentRemorque = motrice;
+  currentNiveau = 'motrice'; // Niveau spécial pour les motrices
+  
+  // Modifier le titre de la modale
+  document.getElementById('zoneTitre').textContent = `${motrice} - Sélectionnez une zone`;
+  
+  // Créer/afficher le sélecteur de zone motrice
+  let selectZone = document.getElementById('zoneMotriceSelect');
+  if (!selectZone) {
+    selectZone = document.createElement('select');
+    selectZone.id = 'zoneMotriceSelect';
+    selectZone.style.cssText = 'width: 100%; padding: 10px; margin-bottom: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 5px;';
+    selectZone.innerHTML = `
+      <option value="">-- Choisir une zone --</option>
+      <option value="Extérieur">Extérieur</option>
+      <option value="Local technique">Local technique</option>
+      <option value="Cabine de conduite">Cabine de conduite</option>
+    `;
+    
+    // Insérer le select avant le commentaire
+    const form = document.querySelector('#commentaireModal .commentaire-form');
+    form.insertBefore(selectZone, form.firstChild);
+  }
+  
+  // Réinitialiser la sélection
+  selectZone.value = '';
+  selectZone.onchange = function() {
+    currentZone = this.value;
+    if (currentZone) {
+      document.getElementById('zoneTitre').textContent = `${motrice} - ${currentZone}`;
+    }
+  };
+  
+  // Afficher la modale
+  document.getElementById('commentaireModal').classList.remove('hidden');
+}
+
 
 function selectNiveau(niveau) {
   currentNiveau = niveau;
@@ -305,8 +348,16 @@ function ouvrirCommentaire(zone) {
 function fermerCommentaire() {
   document.getElementById('photo').value = '';
   document.getElementById('commentaire').value = '';
+  
+  // Supprimer le select de zone motrice s'il existe
+  const selectZone = document.getElementById('zoneMotriceSelect');
+  if (selectZone) {
+    selectZone.remove();
+  }
+  
   document.getElementById('commentaireModal').classList.add('hidden');
 }
+
 
 async function enregistrerDefaut() {
   const prenom = document.getElementById('prenom').value || '';
@@ -315,6 +366,12 @@ async function enregistrerDefaut() {
   const fileInput = document.getElementById('photo');
   const photoFiles = Array.from(fileInput.files || []);
   const photos = photoFiles.map(f => f.name);
+
+  // Vérification pour les motrices
+  if (currentRemorque.startsWith('M') && !currentZone) {
+    alert('Veuillez sélectionner une zone de la motrice');
+    return;
+  }
 
   const defautId = Date.now() + Math.random();
 
@@ -496,6 +553,7 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
 
 
 
