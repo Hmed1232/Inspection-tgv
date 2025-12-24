@@ -233,8 +233,7 @@ function selectRemorque(remorque) {
   currentRemorque = remorque;
 
   // Si c'est une motrice (M1 ou M2)
-  if (remorque.startsWith('M')) {
-    alert(`Zone technique : ${remorque}`);
+  if (remorque.startsWith('M'))
     ouvrirCommentaireMotrice(remorque);
     return;
   }
@@ -694,5 +693,6 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
 
 
