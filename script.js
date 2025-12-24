@@ -293,7 +293,7 @@ function selectNiveau(niveau) {
 
   if (currentRemorque === 'R4') {
     if (niveau === 'haut') {
-      chargerPlan('R4', 'haut');
+      ouvrirCommentaireAvecListe('R4', 'haut');
     } else if (niveau === 'bas') {
       alert('Salle basse non applicable pour R4.');
     }
@@ -304,6 +304,7 @@ function selectNiveau(niveau) {
     chargerPlan(currentRemorque, niveau);
   }
 }
+
 
 // ========= Chargement plan + overlay =========
 
@@ -341,10 +342,17 @@ function chargerPlan(remorque, niveau) {
 
 function ouvrirCommentaire(zone) {
   currentZone = zone;
-  document.getElementById('zoneTitre').textContent =
-    `${currentRemorque} - ${currentNiveau} - ${zone}`;
-  document.getElementById('commentaireModal').classList.remove('hidden');
+  
+  // Si c'est depuis un plan (R1-R3, R5-R8), ouvrir avec liste déroulante
+  if (currentRemorque && currentNiveau && !currentRemorque.startsWith('M')) {
+    ouvrirCommentaireAvecListe(currentRemorque, currentNiveau, zone);
+  } else {
+    // Sinon ouverture simple (extérieur)
+    document.getElementById('zoneTitre').textContent = `${currentRemorque} - ${currentNiveau} - ${zone}`;
+    document.getElementById('commentaireModal').classList.remove('hidden');
+  }
 }
+
 
 function fermerCommentaire() {
   document.getElementById('photo').value = '';
@@ -398,6 +406,119 @@ async function enregistrerDefaut() {
 
   fermerCommentaire();
   document.getElementById('historique').classList.remove('hidden');
+}
+
+function ouvrirCommentaireAvecListe(remorque, niveau, zonePreSelectionnee = '') {
+  currentRemorque = remorque;
+  currentNiveau = niveau;
+  
+  let options = [];
+  let noteInfo = '';
+  
+  // Définir les options selon la remorque et le niveau
+  if (remorque === 'R4' && niveau === 'haut') {
+    options = [
+      'Espace bar',
+      'Office ASCT',
+      'Rangée droite',
+      'Face droite',
+      'Rangée gauche',
+      'Face gauche'
+    ];
+    noteInfo = '💡 Note : Gauche et droite dans le sens d\'entrée dans la salle';
+  } else if (niveau === 'bas') {
+    options = [
+      'Rangée gauche',
+      'Face gauche',
+      'Rangée droite',
+      'Face droite',
+      'Plateforme basse',
+      'WC',
+      'Espace bagages'
+    ];
+    noteInfo = '💡 Note : Gauche et droite dans le sens d\'entrée dans la salle basse';
+  } else if (niveau === 'haut') {
+    options = [
+      'Rangée gauche',
+      'Face gauche',
+      'Rangée droite',
+      'Face droite',
+      'Plateforme haute',
+      'WC',
+      'Espace bagages'
+    ];
+    noteInfo = '💡 Note : Gauche et droite dans le sens d\'entrée dans la salle haute';
+  }
+  
+  // Modifier le titre
+  document.getElementById('zoneTitre').textContent = `${remorque} - ${niveau.charAt(0).toUpperCase() + niveau.slice(1)} - Sélectionnez une zone`;
+  
+  // Créer/afficher la note d'information
+  let noteDiv = document.getElementById('noteInfoZone');
+  if (!noteDiv && noteInfo) {
+    noteDiv = document.createElement('div');
+    noteDiv.id = 'noteInfoZone';
+    noteDiv.style.cssText = 'background: #e3f2fd; padding: 10px; margin-bottom: 15px; border-left: 4px solid #2196F3; border-radius: 4px; font-size: 14px; color: #1976d2;';
+    noteDiv.textContent = noteInfo;
+    
+    const form = document.querySelector('#commentaireModal .commentaire-form');
+    form.insertBefore(noteDiv, form.firstChild);
+  } else if (noteDiv) {
+    noteDiv.textContent = noteInfo;
+  }
+  
+  // Créer/afficher le sélecteur de zone
+  let selectZone = document.getElementById('zoneSelect');
+  if (!selectZone) {
+    selectZone = document.createElement('select');
+    selectZone.id = 'zoneSelect';
+    selectZone.style.cssText = 'width: 100%; padding: 10px; margin-bottom: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 5px;';
+    
+    const form = document.querySelector('#commentaireModal .commentaire-form');
+    // Insérer après la note
+    const noteElement = document.getElementById('noteInfoZone');
+    if (noteElement) {
+      noteElement.after(selectZone);
+    } else {
+      form.insertBefore(selectZone, form.firstChild);
+    }
+  }
+  
+  // Remplir les options
+  selectZone.innerHTML = '<option value="">-- Choisir une zone --</option>';
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt;
+    option.textContent = opt;
+    selectZone.appendChild(option);
+  });
+  
+  // Pré-sélectionner si zone cliquée sur le plan
+  if (zonePreSelectionnee) {
+    // Essayer de trouver une correspondance (approximative si nécessaire)
+    const optionTrouvee = options.find(opt => 
+      opt.toLowerCase().includes(zonePreSelectionnee.toLowerCase()) ||
+      zonePreSelectionnee.toLowerCase().includes(opt.toLowerCase())
+    );
+    if (optionTrouvee) {
+      selectZone.value = optionTrouvee;
+      currentZone = optionTrouvee;
+      document.getElementById('zoneTitre').textContent = `${remorque} - ${niveau.charAt(0).toUpperCase() + niveau.slice(1)} - ${optionTrouvee}`;
+    }
+  }
+  
+  // Gérer le changement de sélection
+  selectZone.onchange = function() {
+    currentZone = this.value;
+    if (currentZone) {
+      document.getElementById('zoneTitre').textContent = `${remorque} - ${niveau.charAt(0).toUpperCase() + niveau.slice(1)} - ${currentZone}`;
+    } else {
+      document.getElementById('zoneTitre').textContent = `${remorque} - ${niveau.charAt(0).toUpperCase() + niveau.slice(1)} - Sélectionnez une zone`;
+    }
+  };
+  
+  // Afficher la modale
+  document.getElementById('commentaireModal').classList.remove('hidden');
 }
 
 // ========= Export ZIP (XLSX + photos/) =========
@@ -554,3 +675,4 @@ function escapeHtml(str){
 function ouvrirChecklist() {
   window.open('checklist.html', '_blank');
 }
+
