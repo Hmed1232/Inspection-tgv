@@ -155,26 +155,3 @@ th {
   background-color: #005a9e;
 }
 
-
-.image-container {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.image-container img {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-}
-
-/* Empêcher le zoom accidentel sur mobile */
-@media (max-width: 768px) {
-  .image-container img {
-    touch-action: manipulation;
-  }
-}
-
