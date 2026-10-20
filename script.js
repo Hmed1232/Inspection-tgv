@@ -6,12 +6,10 @@ const defauts = []; // {prenom, rame, remorque, niveau, zone, commentaire, photo
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-  // Rendre les <area> responsives
-  if (typeof imageMapResize === 'function') {
-    imageMapResize();
-  }
-  // Construire l'overlay du schéma TGV
+  // Construire l'overlay du schéma TGV (et adapter ses zones cliquables à la taille affichée)
   setupSchemaOverlay();
+  const schema = document.getElementById('trainImage');
+  if (schema) schema.addEventListener('load', setupSchemaOverlay);
 
   // Rebuild overlays au resize
   window.addEventListener('resize', debounce(() => {
@@ -20,6 +18,15 @@ document.addEventListener('DOMContentLoaded', () => {
       setupPlanOverlay();
     }
   }, 120));
+});
+
+// Sauvegarde automatique : écouteur séparé pour que la restauration ne dépende
+// de rien d'autre dans l'initialisation de la page
+document.addEventListener('DOMContentLoaded', () => {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
+  restaurerSession();
 });
 
 /* ========= Sélection schéma / remorque / niveau ========= */
@@ -87,12 +94,9 @@ function chargerPlan(remorque, niveau) {
   img.useMap = `#${mapId}`;
   planSalle.classList.remove('hidden');
 
-  img.onload = () => {
-    setupPlanOverlay();
-    if (typeof imageMapResize === 'function') {
-      imageMapResize();
-    }
-  };
+  img.onload = setupPlanOverlay;
+  // Si l'image est déjà chargée (même plan rouvert), on recalcule tout de suite
+  if (img.complete && img.naturalWidth) setupPlanOverlay();
 }
 
 /* ========= Commentaires ========= */
@@ -106,6 +110,61 @@ function ouvrirCommentaire(zone) {
 function fermerCommentaire() {
   document.getElementById('photo').value = '';
   document.getElementById('commentaireModal').classList.add('hidden');
+}
+
+/* ========= Photos : compression =========
+   Les photos de téléphone font 3 à 6 Mo. On les réduit à 3000 px max
+   (plus grand côté) en JPEG qualité 88 % : assez pour zoomer sur un défaut,
+   mais 4 à 6 fois plus léger. Si la compression ne fait pas gagner de place
+   (ou échoue), la photo d'origine est conservée telle quelle.
+*/
+
+const PHOTO_MAX_COTE = 3000;
+const PHOTO_QUALITE = 0.88;
+
+async function chargerImage(file) {
+  if (window.createImageBitmap) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch (e) { /* on tente la méthode classique */ }
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
+    img.src = url;
+  });
+}
+
+async function compresserPhoto(file) {
+  try {
+    if (!file.type || !file.type.startsWith('image/')) return file;
+    const img = await chargerImage(file);
+    const w0 = img.naturalWidth || img.width;
+    const h0 = img.naturalHeight || img.height;
+    const ratio = Math.min(1, PHOTO_MAX_COTE / Math.max(w0, h0));
+    const w = Math.round(w0 * ratio);
+    const h = Math.round(h0 * ratio);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; // fond blanc (au cas où PNG transparent)
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    if (img.close) img.close();
+
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', PHOTO_QUALITE));
+    canvas.width = canvas.height = 0; // libère la mémoire (important sur iPhone)
+
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name, { type: 'image/jpeg', lastModified: file.lastModified });
+  } catch (e) {
+    console.warn('Compression impossible, photo conservée telle quelle', e);
+    return file;
+  }
 }
 
 /* ========= Nommage des photos =========
@@ -133,12 +192,14 @@ function formatDateHeure(d) {
 }
 
 function extensionFichier(file) {
+  const parType = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif' };
+  if (parType[file.type]) return parType[file.type];
   const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
-  let ext = m ? m[1].toLowerCase() : '';
-  if (!ext) {
-    ext = ((file.type || '').split('/')[1] || 'jpg').toLowerCase();
+  if (m) {
+    const ext = m[1].toLowerCase();
+    return ext === 'jpeg' ? 'jpg' : ext;
   }
-  return ext === 'jpeg' ? 'jpg' : ext;
+  return 'jpg';
 }
 
 function construireNomPhoto(file, prenom, remorque, niveau) {
@@ -164,41 +225,101 @@ function construireNomPhoto(file, prenom, remorque, niveau) {
   return nom;
 }
 
-function enregistrerDefaut() {
-  const prenom = document.getElementById('prenom').value || '';
-  const rame = document.getElementById('rame').value || '';
-  const commentaire = document.getElementById('commentaire').value || '';
-  const fileInput = document.getElementById('photo');
+/* ========= Sauvegarde automatique (IndexedDB) =========
+   Chaque défaut (avec ses photos) est gardé dans le navigateur : si Safari ou
+   Chrome recharge la page, tout est restauré. Les erreurs de stockage ne
+   bloquent jamais l'appli (elle fonctionne alors comme avant, en mémoire).
+*/
 
-  // Renomme chaque photo selon le format voulu
-  const photoFiles = Array.from(fileInput.files || []).map(f => {
-    const nouveauNom = construireNomPhoto(f, prenom, currentRemorque, currentNiveau);
-    return new File([f], nouveauNom, { type: f.type, lastModified: f.lastModified });
+const DB_NOM = 'inspection-tgv';
+const DB_STORE = 'defauts';
+let dbPromise = null;
+let dernierId = 0;
+
+function nouvelId() {
+  dernierId = Math.max(Date.now(), dernierId + 1);
+  return dernierId;
+}
+
+function ouvrirDb() {
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) return reject(new Error('IndexedDB indisponible'));
+      const req = indexedDB.open(DB_NOM, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE, { keyPath: 'id' });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return dbPromise;
+}
+
+async function dbOp(mode, fn) {
+  try {
+    const db = await ouvrirDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, mode);
+      const req = fn(tx.objectStore(DB_STORE));
+      tx.oncomplete = () => resolve(req ? req.result : undefined);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('Sauvegarde automatique indisponible', e);
+    return undefined;
+  }
+}
+
+const sauvegarderDefaut = d => dbOp('readwrite', s => s.put(d));
+const supprimerDefautDb = id => dbOp('readwrite', s => s.delete(id));
+const viderDb = () => dbOp('readwrite', s => s.clear());
+const chargerDefautsDb = () => dbOp('readonly', s => s.getAll());
+
+function memoriserChamp(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  try {
+    const v = localStorage.getItem('inspection-' + id);
+    if (v) el.value = v;
+  } catch (e) { /* ignore */ }
+  el.addEventListener('input', () => {
+    try { localStorage.setItem('inspection-' + id, el.value); } catch (e) { /* ignore */ }
   });
-  const photos = photoFiles.map(f => f.name);
+}
 
-  const defaut = {
-    prenom, rame,
-    remorque: currentRemorque,
-    niveau: currentNiveau,
-    zone: currentZone,
-    commentaire,
-    photos,
-    photoFiles
-  };
-  defauts.push(defaut);
+async function restaurerSession() {
+  memoriserChamp('prenom');
+  memoriserChamp('rame');
 
-  // Ajout au tableau
+  const sauvegardes = (await chargerDefautsDb()) || [];
+  sauvegardes.sort((x, y) => x.id - y.id);
+  sauvegardes.forEach(d => {
+    // Sécurité : s'assure que chaque photo est bien un File avec son nom
+    d.photoFiles = (d.photoFiles || []).map((f, i) =>
+      (f instanceof File) ? f : new File([f], d.photos[i], { type: f.type }));
+    d.photos.forEach(n => nomsPhotosUtilises.add(n.toLowerCase()));
+    dernierId = Math.max(dernierId, d.id);
+    defauts.push(d);
+    ajouterLigne(d);
+  });
+  if (defauts.length) {
+    document.getElementById('historique').classList.remove('hidden');
+  }
+}
+
+/* ========= Enregistrement d'un défaut ========= */
+
+function ajouterLigne(defaut) {
   const tbody = document.querySelector('#defautTable tbody');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td>${escapeHtml(prenom)}</td>
-    <td>${escapeHtml(rame)}</td>
-    <td>${escapeHtml(currentRemorque)}</td>
-    <td>${escapeHtml(currentNiveau)}</td>
-    <td>${escapeHtml(currentZone)}</td>
-    <td class="comment-text">${escapeHtml(commentaire)}</td>
-    <td>${photos.length ? photos.map(p => escapeHtml(p)).join('<br>') : '-'}</td>
+    <td>${escapeHtml(defaut.prenom)}</td>
+    <td>${escapeHtml(defaut.rame)}</td>
+    <td>${escapeHtml(defaut.remorque)}</td>
+    <td>${escapeHtml(defaut.niveau)}</td>
+    <td>${escapeHtml(defaut.zone)}</td>
+    <td class="comment-text">${escapeHtml(defaut.commentaire)}</td>
+    <td>${defaut.photos.length ? defaut.photos.map(p => escapeHtml(p)).join('<br>') : '-'}</td>
     <td>
       <button class="edit-btn" title="Modifier">✏️</button>
       <button class="delete-btn" title="Supprimer">🗑️</button>
@@ -210,7 +331,8 @@ function enregistrerDefaut() {
     // Retire aussi du tableau pour que l'export ne contienne plus ce défaut
     const idx = defauts.indexOf(defaut);
     if (idx !== -1) defauts.splice(idx, 1);
-    photos.forEach(n => nomsPhotosUtilises.delete(n.toLowerCase()));
+    defaut.photos.forEach(n => nomsPhotosUtilises.delete(n.toLowerCase()));
+    supprimerDefautDb(defaut.id);
   });
 
   tr.querySelector('.edit-btn').addEventListener('click', () => {
@@ -219,67 +341,153 @@ function enregistrerDefaut() {
     if (newText !== null && newText.trim() !== "") {
       cell.textContent = newText.trim();
       defaut.commentaire = newText.trim();
+      sauvegarderDefaut(defaut);
     }
   });
 
   tbody.appendChild(tr);
+}
 
-  document.getElementById('commentaire').value = '';
-  fermerCommentaire();
-  document.getElementById('historique').classList.remove('hidden');
+let enregistrementEnCours = false;
+
+async function enregistrerDefaut() {
+  if (enregistrementEnCours) return;
+  enregistrementEnCours = true;
+
+  const btn = document.getElementById('btnEnregistrer');
+  const texteBtn = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement…'; }
+
+  try {
+    const prenom = document.getElementById('prenom').value || '';
+    const rame = document.getElementById('rame').value || '';
+    const commentaire = document.getElementById('commentaire').value || '';
+    const remorque = currentRemorque;
+    const niveau = currentNiveau;
+    const zone = currentZone;
+    const fichiers = Array.from(document.getElementById('photo').files || []);
+
+    // Compresse puis renomme chaque photo (une par une pour ménager la mémoire)
+    const photoFiles = [];
+    for (const f of fichiers) {
+      const reduit = await compresserPhoto(f);
+      const nom = construireNomPhoto(reduit, prenom, remorque, niveau);
+      photoFiles.push(new File([reduit], nom, { type: reduit.type, lastModified: f.lastModified }));
+    }
+
+    const defaut = {
+      id: nouvelId(),
+      prenom, rame, remorque, niveau, zone, commentaire,
+      photos: photoFiles.map(f => f.name),
+      photoFiles
+    };
+    defauts.push(defaut);
+    ajouterLigne(defaut);
+    await sauvegarderDefaut(defaut);
+
+    document.getElementById('commentaire').value = '';
+    fermerCommentaire();
+    document.getElementById('historique').classList.remove('hidden');
+  } finally {
+    enregistrementEnCours = false;
+    if (btn) { btn.disabled = false; btn.textContent = texteBtn; }
+  }
 }
 
 /* ========= Export ZIP (XLSX + photos/) ========= */
+
+let exportEnCours = false;
 
 async function exportXlsx() {
   if (!defauts.length) {
     alert('Aucune remarque à exporter.');
     return;
   }
+  if (exportEnCours) return;
+  exportEnCours = true;
 
-  // 1) Générer XLSX
-  const data = [
-    ['Prénom','Rame','Remorque','Niveau','Zone','Commentaire','Photos']
-  ];
-  defauts.forEach(d => {
-    data.push([
-      d.prenom,
-      d.rame,
-      d.remorque,
-      d.niveau,
-      d.zone,
-      d.commentaire,
-      (d.photos || []).join(', ')
-    ]);
-  });
+  const btn = document.getElementById('btnExport');
+  const texteBtn = btn ? btn.textContent : '';
+  if (btn) btn.disabled = true;
+  const afficher = txt => { if (btn) btn.textContent = txt; };
+  afficher('Export en cours…');
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Remarques');
+  let reussi = false;
+  try {
+    // 1) Générer XLSX
+    const data = [
+      ['Prénom','Rame','Remorque','Niveau','Zone','Commentaire','Photos']
+    ];
+    defauts.forEach(d => {
+      data.push([
+        d.prenom,
+        d.rame,
+        d.remorque,
+        d.niveau,
+        d.zone,
+        d.commentaire,
+        (d.photos || []).join(', ')
+      ]);
+    });
 
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const xlsxName = `Inspection_TGV_${dateStr}.xlsx`;
-  const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Remarques');
 
-  // 2) Créer le ZIP
-  const zip = new JSZip();
-  zip.file(xlsxName, xlsxArray);
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const xlsxName = `Inspection_TGV_${dateStr}.xlsx`;
+    const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
-  // 3) Ajouter photos/
-  const photosFolder = zip.folder("photos");
-  for (const d of defauts) {
-    if (d.photoFiles && d.photoFiles.length) {
-      for (const file of d.photoFiles) {
-        const buf = await file.arrayBuffer();
-        photosFolder.file(file.name, buf);
+    // 2) Créer le ZIP
+    const zip = new JSZip();
+    zip.file(xlsxName, xlsxArray);
+
+    // 3) Ajouter photos/ (les JPEG sont déjà compressés : on les stocke tels quels)
+    const photosFolder = zip.folder("photos");
+    for (const d of defauts) {
+      for (const file of (d.photoFiles || [])) {
+        photosFolder.file(file.name, file);
       }
     }
+
+    // 4) Générer et télécharger le ZIP
+    const zipBlob = await zip.generateAsync(
+      { type: "blob", compression: "STORE" },
+      meta => afficher(`Export en cours… ${Math.round(meta.percent)} %`)
+    );
+    saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
+    reussi = true;
+  } catch (e) {
+    console.error(e);
+    alert("Erreur pendant l'export : " + (e && e.message ? e.message : e));
+  } finally {
+    exportEnCours = false;
+    if (btn) { btn.disabled = false; btn.textContent = texteBtn; }
   }
 
-  // 4) Télécharger le ZIP
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  saveAs(zipBlob, `Inspection_TGV_${dateStr}.zip`);
+  // 5) Proposer de repartir de zéro (la sauvegarde automatique serait sinon
+  //    rechargée à la prochaine visite)
+  if (reussi) {
+    setTimeout(async () => {
+      const ok = confirm(
+        "Export terminé.\n\nLe ZIP est-il bien téléchargé ?\n" +
+        "OK = effacer les défauts et repartir de zéro\n" +
+        "Annuler = tout conserver"
+      );
+      if (ok) await viderInspection();
+    }, 800);
+  }
+}
+
+async function viderInspection() {
+  defauts.length = 0;
+  nomsPhotosUtilises.clear();
+  document.querySelector('#defautTable tbody').innerHTML = '';
+  document.getElementById('historique').classList.add('hidden');
+  document.getElementById('rame').value = '';
+  try { localStorage.removeItem('inspection-rame'); } catch (e) { /* ignore */ }
+  await viderDb();
 }
 
 /* ========= Overlays (surbrillances) =========
@@ -303,6 +511,22 @@ function setupPlanOverlay() {
   buildOverlayFromMap(img, map, svg);
 }
 
+/* Les coordonnées écrites dans le HTML sont celles de l'image en taille réelle.
+   On les mémorise (data-coords), puis on recalcule les coordonnées des <area>
+   à la taille réellement affichée, pour que les zones cliquables collent à
+   l'image sur téléphone, tablette et ordinateur. */
+function coordsOrigine(area) {
+  if (!area.dataset.coords) area.dataset.coords = area.getAttribute('coords') || '';
+  return area.dataset.coords.split(',').map(v => Number(v.trim())).filter(v => !isNaN(v));
+}
+
+function appliquerEchelleZone(area, coords, shape, sx, sy) {
+  const echelle = (shape === 'circle')
+    ? coords.map((v, i) => v * (i === 2 ? (sx + sy) / 2 : (i % 2 === 0 ? sx : sy)))
+    : coords.map((v, i) => v * (i % 2 === 0 ? sx : sy));
+  area.setAttribute('coords', echelle.map(v => Math.round(v * 10) / 10).join(','));
+}
+
 function buildOverlayFromMap(img, mapEl, svgEl) {
   // Clear
   while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
@@ -310,6 +534,7 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
   // Dimensions affichées
   const dw = img.clientWidth;
   const dh = img.clientHeight;
+  if (!dw || !dh) return; // image masquée ou pas encore affichée
 
   // Taille originale
   const nw = img.naturalWidth || dw;
@@ -325,8 +550,9 @@ function buildOverlayFromMap(img, mapEl, svgEl) {
   const areas = Array.from(mapEl.querySelectorAll('area'));
   areas.forEach(a => {
     const shape = (a.getAttribute('shape') || 'rect').toLowerCase();
-    const coords = (a.getAttribute('coords') || '').split(',').map(v => Number(v.trim())).filter(v => !isNaN(v));
+    const coords = coordsOrigine(a);
     if (!coords.length) return;
+    appliquerEchelleZone(a, coords, shape, sx, sy);
 
     if (shape === 'rect' || shape === '0' || shape === 'rectangle') {
       let [x1,y1,x2,y2] = coords;
@@ -380,23 +606,3 @@ function escapeHtml(str){
     .replaceAll('"','&quot;')
     .replaceAll("'",'&#039;');
 }
-
-document.querySelectorAll('.delete-btn').forEach(btn => {
-  btn.addEventListener('click', function () {
-    const comment = this.closest('.commentaire');
-    // Supprimer le commentaire du DOM
-    comment.remove();
-    // Optionnel : supprimer côté serveur si nécessaire
-  });
-});
-
-document.querySelectorAll('.edit-btn').forEach(btn => {
-  btn.addEventListener('click', function () {
-    const commentText = this.closest('.commentaire').querySelector('.comment-text');
-    const newText = prompt("Modifier le commentaire :", commentText.textContent);
-    if (newText !== null) {
-      commentText.textContent = newText;
-      // Optionnel : mettre à jour côté serveur
-    }
-  });
-});

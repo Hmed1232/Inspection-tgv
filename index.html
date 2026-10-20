@@ -226,7 +226,7 @@
   </div>
 
   <div class="btn-row">
-    <button onclick="enregistrerDefaut()">💾 Enregistrer</button>
+    <button id="btnEnregistrer" onclick="enregistrerDefaut()">💾 Enregistrer</button>
     <button onclick="fermerCommentaire()">❌ Fermer</button>
   </div>
 </div>
@@ -235,7 +235,7 @@
 <section id="historique" class="hidden">
   <h2>Historique des défauts</h2>
   <div class="btn-row">
-    <button onclick="exportXlsx()">Exporter ZIP (XLSX + photos)</button>
+    <button id="btnExport" onclick="exportXlsx()">Exporter ZIP (XLSX + photos)</button>
   </div>
   <table id="defautTable">
     <thead>
@@ -248,10 +248,9 @@
 </section>
 
 <!-- Librairies -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/image-map-resizer/1.0.10/js/imageMapResizer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/FileSaver.min.js"></script>
 
 <script src="script.js"></script>
 </body>
