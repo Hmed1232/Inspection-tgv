@@ -9,18 +9,14 @@
 <body>
 
 <div id="export-warning">
-  ⚠️ <strong>Les données sont sauvegardées automatiquement dans votre navigateur</strong>
+  ⚠️ <strong>Exporter en ZIP avant de quitter la page — sinon tout sera perdu ! </strong>
 </div>
 
 <header>
   <h1>Inspection TGV Duplex</h1>
   <input type="text" id="prenom" placeholder="Votre prénom" />
   <input type="text" id="rame" placeholder="Numéro de rame" />
-  <button onclick="window.open('checklist.html', '_blank')" style="background-color: #4CAF50; color: white; padding: 10px 20px; margin-left: 10px;">
-    📋 Checklist de vérification
-  </button>
 </header>
-
 
 <main>
 
@@ -226,7 +222,7 @@
     <textarea id="commentaire" placeholder="Décrivez le défaut..."></textarea>
 
     <label for="photo">📎 Ajouter une photo :</label>
-    <input type="file" id="photo" multiple />
+    <input type="file" id="photo" accept="image/*" multiple />
   </div>
 
   <div class="btn-row">
@@ -239,10 +235,7 @@
 <section id="historique" class="hidden">
   <h2>Historique des défauts</h2>
   <div class="btn-row">
-    <button onclick="exportXlsx()">📥 Exporter ZIP (XLSX + photos)</button>
-    <button onclick="effacerToutesLesDonnees()" style="background-color: #f44336; color: white;">
-      🗑️ Effacer toutes les données
-    </button>
+    <button onclick="exportXlsx()">Exporter ZIP (XLSX + photos)</button>
   </div>
   <table id="defautTable">
     <thead>
@@ -263,5 +256,3 @@
 <script src="script.js"></script>
 </body>
 </html>
-
-
